@@ -10,7 +10,7 @@ function ChefIcon({ className = 'w-4 h-4' }) {
   )
 }
 
-export default function FloatingChat({ open, onToggle, messages, loading, onSend, currentRecipe = null }) {
+export default function FloatingChat({ open, onToggle, messages, loading, onSend, currentRecipe = null, onBookmark = null, bookmarkedMsgs = [], onFetchBookmarks = null, onDeleteBookmark = null }) {
   const [side, setSide]               = useState('right')
   const [expanded, setExpanded]       = useState(false)
   const [mobileHeight, setMobileHeight] = useState(55) // % of viewport height
@@ -130,7 +130,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} />
+          <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} />
         </div>
       </div>
 
@@ -158,7 +158,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} />
+              <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} />
             </div>
           </div>
         </div>

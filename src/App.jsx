@@ -340,9 +340,69 @@ export default function App() {
   const [chatExpanded, setChatExpanded] = useState(false)
   const [chatOpen, setChatOpen]         = useState(false)
 
+  // Persistent anonymous user ID
+  const [userId] = useState(() => {
+    let id = localStorage.getItem('at_user_id')
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem('at_user_id', id) }
+    return id
+  })
+
+  // Bookmarked messages (persisted in localStorage)
+  const [bookmarkedMsgs, setBookmarkedMsgs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('at_bookmarks') || '[]') } catch { return [] }
+  })
+
+  function updateBookmarks(next) {
+    setBookmarkedMsgs(next)
+    localStorage.setItem('at_bookmarks', JSON.stringify(next))
+  }
+
+  async function fetchBookmarks() {
+    try {
+      const res = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CHAT_KEY}` },
+        body: JSON.stringify({ action: 'get_bookmarks', userId }),
+      })
+      const data = await res.json()
+      return data.bookmarks ?? []
+    } catch { return [] }
+  }
+
+  async function deleteBookmarkById(bookmarkId, messageText) {
+    updateBookmarks(bookmarkedMsgs.filter(m => m !== messageText))
+    try {
+      await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CHAT_KEY}` },
+        body: JSON.stringify({ action: 'delete_bookmark', userId, bookmarkId, messageText }),
+      })
+    } catch {}
+  }
+
+  async function toggleBookmark(messageText) {
+    const isBookmarked = bookmarkedMsgs.includes(messageText)
+    updateBookmarks(isBookmarked
+      ? bookmarkedMsgs.filter(m => m !== messageText)
+      : [...bookmarkedMsgs, messageText]
+    )
+    try {
+      await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CHAT_KEY}` },
+        body: JSON.stringify({
+          action:      isBookmarked ? 'delete_bookmark' : 'save_bookmark',
+          userId,
+          messageText,
+          recipeId:    selectedRecipe?.id ?? null,
+        }),
+      })
+    } catch { /* fire-and-forget, localStorage is source of truth */ }
+  }
+
   const chatHasNew = !chatOpen && chatMessages.length > 0 && chatMessages.at(-1)?.role === 'assistant'
 
-  async function sendChatMessage(text, contextId = null) {
+  async function sendChatMessage(text, contextId = null, isPlanningMode = false) {
     const next = [...chatMessages, { role: 'user', content: text }]
     setChatMessages(next)
     setChatLoading(true)
@@ -356,6 +416,8 @@ export default function App() {
         body: JSON.stringify({
           messages:        next,
           currentRecipeId: contextId,
+          isPlanningMode,
+          userId,
         }),
       })
       const data = await res.json()
@@ -544,12 +606,9 @@ export default function App() {
         {/* Dashboard */}
         {view === 'dashboard' && (
           <>
-            <div className="mb-7">
-              <div className="flex items-center gap-3 mb-1">
-                <div className="w-1 h-7 bg-gradient-to-b from-amber-400 to-amber-200 rounded-full shrink-0" />
-                <h1 className="text-xl sm:text-2xl font-bold text-stone-800 tracking-tight">ספר המתכונים</h1>
-              </div>
-              <p className="text-stone-400 text-sm mr-4">After Taste Kitchen — {Object.values(recipeCounts).reduce((a, b) => a + b, 0)} מתכונים</p>
+            <div className="mb-8 text-center">
+              <h1 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight mb-2">ספר המתכונים</h1>
+              <p className="text-stone-400 text-sm">After Taste Kitchen — {Object.values(recipeCounts).reduce((a, b) => a + b, 0)} מתכונים</p>
             </div>
             <SearchBar value={search} onChange={setSearch} />
 
@@ -608,7 +667,9 @@ export default function App() {
                   </svg>
                 </button>
               </div>
-              <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage} compact />
+              <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage}
+                compact onBookmark={toggleBookmark} bookmarkedMsgs={bookmarkedMsgs}
+                onFetchBookmarks={fetchBookmarks} onDeleteBookmark={deleteBookmarkById} />
             </div>
 
             {/* Fullscreen chat modal */}
@@ -639,7 +700,9 @@ export default function App() {
                     </button>
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage} />
+                    <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage}
+                      onBookmark={toggleBookmark} bookmarkedMsgs={bookmarkedMsgs}
+                      onFetchBookmarks={fetchBookmarks} onDeleteBookmark={deleteBookmarkById} />
                   </div>
                 </div>
               </div>
@@ -696,6 +759,10 @@ export default function App() {
         loading={chatLoading}
         onSend={sendChatMessage}
         currentRecipe={selectedRecipe}
+        onBookmark={toggleBookmark}
+        bookmarkedMsgs={bookmarkedMsgs}
+        onFetchBookmarks={fetchBookmarks}
+        onDeleteBookmark={deleteBookmarkById}
       />
     </div>
   )
