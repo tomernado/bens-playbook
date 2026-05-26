@@ -20,7 +20,7 @@ NON-NEGOTIABLE RULES:
 When an [ACTIVE RECIPE] block is provided, its Ingredients and Steps are the UNQUESTIONABLE source of truth. You MUST quote the exact quantities and steps as written. NEVER override, ignore, or contradict the recipe data with general culinary theory — not even if you think the recipe is unusual. If the recipe lists 175g salt, state 175g salt. If it says cook for 40 minutes, say 40 minutes. Your general chef knowledge may ONLY be used to explain WHY something is done, or to offer a substitution when data is explicitly absent. Applying rules from a different dish category (e.g., stock rules to a pickle recipe) is a critical error.`
 
 type RecipeRow = { id: string; recipe_number: number; title: string; title_en: string | null }
-type IngRow    = { qty?: string; unit?: string; name: string }
+type IngRow    = { raw_text: string }
 type StepRow   = { step: number; title?: string; body: string }
 
 function detectNumber(text: string): number | null {
@@ -79,18 +79,21 @@ Deno.serve(async (req) => {
 
     let recipeBlock = ''
     if (targetId) {
-      const { data: full, error: recipeErr } = await db
-        .from('recipes')
-        .select('recipe_number, title, title_en, texture, cook_time, ingredients, instructions')
-        .eq('id', targetId)
-        .single()
+      const [{ data: full, error: recipeErr }, { data: ingRows }] = await Promise.all([
+        db.from('recipes')
+          .select('recipe_number, title, title_en, texture, cook_time, instructions')
+          .eq('id', targetId)
+          .single(),
+        db.from('ingredients')
+          .select('raw_text')
+          .eq('recipe_id', targetId)
+          .order('sort_order'),
+      ])
 
       if (recipeErr) {
         console.log('[chat] recipe fetch error:', recipeErr.message, 'id:', targetId)
       } else if (full) {
-        const ings = (full.ingredients ?? []).map((i: IngRow) =>
-          [i.qty, i.unit, i.name].filter(Boolean).join(' ')
-        ).join(', ')
+        const ings = (ingRows ?? []).map((i: IngRow) => i.raw_text).filter(Boolean).join(', ')
 
         const steps = (full.instructions ?? []).map((s: StepRow) =>
           `${s.step}. ${s.title ? `[${s.title}] ` : ''}${s.body}`
