@@ -482,7 +482,10 @@ export default function ChatPanel({
           )}
 
           {/* ── Input bar ── */}
-          <form onSubmit={handleSubmit} className="border-t border-stone-200 p-3 flex gap-2 bg-white shrink-0">
+          <form onSubmit={handleSubmit}
+            className="border-t border-stone-200 p-2 sm:p-3 flex gap-1.5 sm:gap-2 bg-white shrink-0"
+            style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))' }}
+          >
             {/* Hidden file input */}
             <input
               ref={fileInputRef}
@@ -514,7 +517,7 @@ export default function ChatPanel({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title="צרף תמונה"
-              className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors
+              className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-colors
                 ${imageBase64
                   ? 'bg-amber-100 text-amber-600 border border-amber-300'
                   : 'bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600'}`}
@@ -529,7 +532,7 @@ export default function ChatPanel({
                 type="button"
                 onClick={toggleVoice}
                 title={isListening ? 'עצור האזנה' : 'הקלד בקול'}
-                className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-colors
                   ${isListening
                     ? 'bg-red-50 text-red-500 border border-red-200 animate-pulse'
                     : 'bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600'}`}
@@ -542,9 +545,9 @@ export default function ChatPanel({
                 </svg>
               </button>
             )}
-            <button type="submit" disabled={!input.trim() || loading}
+            <button type="submit" disabled={(!input.trim() && !imageBase64) || loading}
               className="bg-amber-600 hover:bg-amber-700 active:bg-amber-800 disabled:opacity-40
-                         text-white rounded-xl px-4 py-2.5 text-sm font-medium transition-colors shrink-0">
+                         text-white rounded-xl px-3 sm:px-4 py-2.5 text-sm font-medium transition-colors shrink-0">
               שלח
             </button>
           </form>

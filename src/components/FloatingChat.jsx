@@ -64,7 +64,9 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
       ? 'translate-y-full sm:translate-y-0 sm:translate-x-full'
       : 'translate-y-full sm:translate-y-0 sm:-translate-x-full'
 
-  const panelStyle = isMobile ? { height: `${mobileHeight}vh` } : { width: '27rem' }
+  const panelStyle = isMobile
+    ? { height: `${mobileHeight}dvh`, maxHeight: `${mobileHeight}dvh` }
+    : { width: '27rem' }
 
   return (
     <>
