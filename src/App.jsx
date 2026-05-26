@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 import RecipeDetail from './components/RecipeDetail'
+import ChatPanel from './components/ChatPanel'
+import FloatingChat from './components/FloatingChat'
+
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smooth-action`
+const CHAT_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 /* ─── Spinner ──────────────────────────────────────────────────────────── */
 function Spinner() {
@@ -299,6 +304,42 @@ export default function App() {
   const [showAddCat, setShowAddCat]       = useState(false)
   const [showAddRecipe, setShowAddRecipe] = useState(false)
 
+  // ── Chat ─────────────────────────────────────────────────────────────
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatLoading, setChatLoading]   = useState(false)
+  const [chatExpanded, setChatExpanded] = useState(false)
+
+  async function sendChatMessage(text, contextId = null) {
+    const next = [...chatMessages, { role: 'user', content: text }]
+    setChatMessages(next)
+    setChatLoading(true)
+    try {
+      const res = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${CHAT_KEY}`,
+        },
+        body: JSON.stringify({
+          messages:        next,
+          currentRecipeId: contextId,
+        }),
+      })
+      const data = await res.json()
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: data.content ?? data.error ?? 'שגיאה לא ידועה' },
+      ])
+    } catch {
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'שגיאה בחיבור לשרת. נסה שוב.' },
+      ])
+    } finally {
+      setChatLoading(false)
+    }
+  }
+
   // ── Event menu (Supabase-backed) ─────────────────────────────────────
   const [eventIds, setEventIds]       = useState([])
   const [eventRecipes, setEventRecipes] = useState([])
@@ -422,7 +463,7 @@ export default function App() {
               onClick={() => setView(view === 'event' ? 'dashboard' : 'event')}
               className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-sm touch-manipulation transition-all
                 ${view === 'event'
-                  ? 'bg-amber-500 text-white shadow-sm'
+                  ? 'bg-amber-600 text-white shadow-sm'
                   : eventIds.length > 0
                     ? 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100'
                     : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
@@ -483,6 +524,61 @@ export default function App() {
                   onSelect={openCategory} onAdd={() => setShowAddCat(true)} />
               )
             )}
+
+            {/* ── Embedded Chef Chat ── */}
+            <div className="mt-8 bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200 bg-amber-50/60" dir="rtl">
+                <div className="w-9 h-9 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-lg shrink-0">
+                  👨‍🍳
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-stone-800 text-sm">שאל את השף</div>
+                  <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים — תשובות מהירות</div>
+                </div>
+                <button
+                  onClick={() => setChatExpanded(true)}
+                  className="w-8 h-8 rounded-lg hover:bg-amber-100 flex items-center justify-center
+                             text-stone-400 hover:text-amber-700 transition-colors shrink-0"
+                  title="הרחב"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                  </svg>
+                </button>
+              </div>
+              <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage} compact />
+            </div>
+
+            {/* Fullscreen chat modal */}
+            {chatExpanded && (
+              <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden"
+                     style={{ height: 'min(80vh, 700px)' }}>
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200 bg-amber-50/60 shrink-0" dir="rtl">
+                    <div className="w-9 h-9 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-lg shrink-0">
+                      👨‍🍳
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-stone-800 text-sm">שאל את השף</div>
+                      <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים</div>
+                    </div>
+                    <button
+                      onClick={() => setChatExpanded(false)}
+                      className="w-8 h-8 rounded-lg hover:bg-amber-100 flex items-center justify-center
+                                 text-stone-400 hover:text-amber-700 transition-colors shrink-0"
+                      title="מזער"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage} />
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -526,6 +622,9 @@ export default function App() {
           onClose={() => setShowAddRecipe(false)}
           onSaved={() => loadRecipesForCat(selectedCat.id)} />
       )}
+
+      {/* Global floating chef chat */}
+      <FloatingChat messages={chatMessages} loading={chatLoading} onSend={sendChatMessage} currentRecipe={selectedRecipe} />
     </div>
   )
 }
