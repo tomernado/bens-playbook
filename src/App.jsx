@@ -19,26 +19,45 @@ function Spinner() {
 /* ─── Category Grid ────────────────────────────────────────────────────── */
 function CategoryGrid({ categories, recipeCounts, onSelect, onAdd }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {categories.map(cat => (
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      {categories.map((cat) => (
         <button key={cat.id} onClick={() => onSelect(cat)}
-          className="group text-right bg-white border border-stone-200 rounded-2xl p-5 shadow-sm
-                     hover:shadow-md hover:border-amber-300 active:scale-[.98] transition-all duration-150">
-          <div className="text-3xl mb-3">{cat.emoji}</div>
-          <div className="font-bold text-stone-800 text-base leading-snug mb-1">{cat.name}</div>
-          <div className="text-stone-500 text-sm mb-3 line-clamp-2">{cat.description}</div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-stone-400">{recipeCounts[cat.id] ?? 0} מתכונים</span>
-            <span className="text-amber-600 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">פתח ←</span>
+          className="group text-right bg-[#fffcf0] border border-amber-100 rounded-2xl p-4 sm:p-5
+                     shadow-[0_2px_12px_-4px_rgba(0,0,0,0.07)]
+                     hover:shadow-[0_8px_28px_-6px_rgba(0,0,0,0.13)]
+                     hover:bg-[#fff8e6] hover:border-amber-200
+                     active:scale-[.98] transition-all duration-200
+                     relative overflow-hidden flex flex-col h-[150px] sm:h-[165px]"
+        >
+          {/* Accent bar right edge */}
+          <div className="absolute top-0 right-0 w-[3px] h-full rounded-r-2xl
+                          bg-gradient-to-b from-amber-400 to-amber-100
+                          opacity-40 group-hover:opacity-100 transition-opacity duration-200" />
+
+          <div className="font-bold text-stone-800 text-sm sm:text-base leading-snug mb-1.5 flex-1">
+            {cat.name}
+          </div>
+          <div className="text-stone-400 text-[11px] sm:text-xs leading-relaxed line-clamp-2">
+            {cat.description}
+          </div>
+
+          <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-amber-100/80">
+            <span className="text-[11px] font-bold text-amber-600/70">{recipeCounts[cat.id] ?? 0} מתכונים</span>
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 className="w-3.5 h-3.5 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="m15 18-6-6 6-6"/>
+            </svg>
           </div>
         </button>
       ))}
       <button onClick={onAdd}
-        className="text-right border-2 border-dashed border-stone-300 rounded-2xl p-5
-                   hover:border-amber-400 hover:bg-amber-50 active:scale-[.98]
-                   transition-all duration-150 text-stone-400 hover:text-amber-600">
-        <div className="text-3xl mb-3">＋</div>
-        <div className="font-medium text-sm">הוסף קטגוריה</div>
+        className="text-right border border-dashed border-stone-200 rounded-2xl p-4 sm:p-5
+                   hover:border-amber-300 hover:bg-amber-50/30 active:scale-[.98]
+                   transition-all duration-200 text-stone-300 hover:text-amber-500
+                   flex flex-col justify-center h-[150px] sm:h-[165px]">
+        <div className="text-xl mb-1 font-light">+</div>
+        <div className="font-medium text-xs sm:text-sm">קטגוריה חדשה</div>
       </button>
     </div>
   )
@@ -60,31 +79,41 @@ function RecipeList({ category, recipes, onSelect, onAdd, onBack, eventIds, onTo
         <p className="text-stone-400 text-center py-12">אין מתכונים בקטגוריה זו עדיין.</p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
         {recipes.map(r => (
-          <div key={r.id} className="relative group/card">
+          <div key={r.id} className="relative group/card h-[150px] sm:h-[165px]">
             <button onClick={() => onSelect(r)}
-              className="w-full text-right bg-white border border-stone-200 rounded-2xl p-4 shadow-sm
-                         hover:shadow-md hover:border-amber-300 active:scale-[.98] transition-all duration-150">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <span className="text-amber-600 font-mono text-xs font-bold mt-0.5">#{String(r.recipe_number).padStart(2, '0')}</span>
-                <span className="font-bold text-stone-800 text-sm leading-snug text-right flex-1">{r.title}</span>
+              className="w-full h-full text-right bg-white border border-stone-200 rounded-2xl p-4
+                         shadow-[0_2px_12px_-4px_rgba(0,0,0,0.07)]
+                         hover:shadow-[0_8px_28px_-6px_rgba(0,0,0,0.13)]
+                         hover:border-amber-200 hover:bg-amber-50/30
+                         active:scale-[.98] transition-all duration-150
+                         relative overflow-hidden flex flex-col">
+              {/* Accent bar right edge */}
+              <div className="absolute top-0 right-0 w-[3px] h-full rounded-r-2xl
+                              bg-gradient-to-b from-amber-300 to-amber-100
+                              opacity-0 group-hover/card:opacity-100 transition-opacity duration-200" />
+
+              <div className="flex items-start justify-between gap-1.5 mb-1">
+                <span className="text-amber-500 font-mono text-[10px] font-bold mt-0.5 shrink-0">#{String(r.recipe_number).padStart(2, '0')}</span>
+                <span className="font-bold text-stone-800 text-sm leading-snug text-right flex-1 line-clamp-2">{r.title}</span>
               </div>
-              {r.title_en && <div className="text-stone-400 text-xs mb-2">{r.title_en}</div>}
-              {r.texture  && <div className="text-stone-500 text-xs line-clamp-2 mb-2">{r.texture}</div>}
-              <div className="flex flex-wrap gap-1 justify-end">
-                {(r.vibe_tags || []).slice(0, 3).map(tag => (
-                  <span key={tag} className="text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">{tag}</span>
+              {r.title_en && <div className="text-stone-400 text-[11px] mb-1 truncate text-right">{r.title_en}</div>}
+              {r.texture  && <div className="text-stone-400 text-[11px] line-clamp-2 flex-1">{r.texture}</div>}
+
+              <div className="flex flex-wrap gap-1 justify-end mt-auto pt-2 border-t border-stone-100">
+                {(r.vibe_tags || []).slice(0, 1).map(tag => (
+                  <span key={tag} className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 rounded-full px-2 py-0.5">{tag}</span>
                 ))}
                 {r.cook_time && (
-                  <span className="text-xs bg-stone-100 text-stone-500 rounded-full px-2 py-0.5">⏱ {r.cook_time}</span>
+                  <span className="text-[10px] text-stone-400 font-medium">⏱ {r.cook_time}</span>
                 )}
               </div>
             </button>
             {/* Star button */}
             <button
               onClick={() => onToggleEvent(r.id)}
-              className={`absolute top-2 left-2 text-lg leading-none touch-manipulation transition-all z-10
+              className={`absolute top-2 left-2 text-base leading-none touch-manipulation transition-all z-10
                 ${eventIds.includes(r.id)
                   ? 'opacity-100 drop-shadow-sm'
                   : 'opacity-30 hover:opacity-80 sm:opacity-0 sm:group-hover/card:opacity-50'}`}
@@ -94,11 +123,12 @@ function RecipeList({ category, recipes, onSelect, onAdd, onBack, eventIds, onTo
         ))}
 
         <button onClick={onAdd}
-          className="text-right border-2 border-dashed border-stone-300 rounded-2xl p-4
-                     hover:border-amber-400 hover:bg-amber-50 active:scale-[.98]
-                     transition-all duration-150 text-stone-400 hover:text-amber-600">
-          <div className="text-2xl mb-2">＋</div>
-          <div className="font-medium text-sm">הוסף מתכון</div>
+          className="text-right border border-dashed border-stone-200 rounded-2xl p-4
+                     hover:border-amber-300 hover:bg-amber-50/30 active:scale-[.98]
+                     transition-all duration-150 text-stone-300 hover:text-amber-500
+                     h-[150px] sm:h-[165px] flex flex-col justify-center">
+          <div className="text-xl mb-1 font-light">+</div>
+          <div className="font-medium text-xs sm:text-sm">הוסף מתכון</div>
         </button>
       </div>
     </div>
@@ -308,6 +338,9 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([])
   const [chatLoading, setChatLoading]   = useState(false)
   const [chatExpanded, setChatExpanded] = useState(false)
+  const [chatOpen, setChatOpen]         = useState(false)
+
+  const chatHasNew = !chatOpen && chatMessages.length > 0 && chatMessages.at(-1)?.role === 'assistant'
 
   async function sendChatMessage(text, contextId = null) {
     const next = [...chatMessages, { role: 'user', content: text }]
@@ -440,24 +473,45 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50" dir="rtl">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(170deg, #faf9f6 0%, #f4f2ed 100%)' }} dir="rtl">
 
       {/* ── Header ── */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
+      <header className="bg-white/90 backdrop-blur-sm border-b border-stone-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <button onClick={goHome}
-            className="font-bold text-stone-800 text-base tracking-tight hover:text-amber-600 transition-colors shrink-0">
-            After Taste 🍴
+            className="font-bold text-stone-800 text-base tracking-tight hover:text-amber-600 transition-colors shrink-0 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+            </svg>
+            After Taste
           </button>
 
           {selectedCat && view !== 'event' && (
-            <div className="text-stone-500 text-sm hidden sm:block truncate">
-              {selectedCat.emoji} {selectedCat.name}
-              {selectedRecipe && <> › <span className="text-stone-700">{selectedRecipe.title}</span></>}
+            <div className="text-stone-400 text-sm hidden sm:block truncate">
+              {selectedCat.name}
+              {selectedRecipe && <> › <span className="text-stone-600 font-medium">{selectedRecipe.title}</span></>}
             </div>
           )}
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Chat button — mobile only (desktop uses the FAB) */}
+            <button
+              onClick={() => setChatOpen(o => !o)}
+              className={`relative sm:hidden flex items-center justify-center w-9 h-9 rounded-xl transition-all touch-manipulation
+                ${chatOpen
+                  ? 'bg-stone-800 text-white shadow-sm'
+                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
+              title="שאל את השף"
+              aria-label="פתח צ'אט"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              {chatHasNew && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" />
+              )}
+            </button>
+
             {/* Event menu button */}
             <button
               onClick={() => setView(view === 'event' ? 'dashboard' : 'event')}
@@ -468,8 +522,11 @@ export default function App() {
                     ? 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100'
                     : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
             >
-              <span>🎪</span>
-              <span className="hidden sm:inline">מתכונים שמורים</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z"/>
+                <path d="M8 7h8M8 11h8M8 15h5"/>
+              </svg>
+              <span>מתכונים שמורים</span>
               {eventIds.length > 0 && (
                 <span className={`min-w-[18px] h-[18px] text-[10px] rounded-full flex items-center justify-center px-1 font-bold
                   ${view === 'event' ? 'bg-white text-amber-600' : 'bg-amber-500 text-white'}`}>
@@ -477,7 +534,6 @@ export default function App() {
                 </span>
               )}
             </button>
-            <div className="text-xs text-stone-400 hidden sm:block">{categories.length} קטגוריות</div>
           </div>
         </div>
       </header>
@@ -488,9 +544,12 @@ export default function App() {
         {/* Dashboard */}
         {view === 'dashboard' && (
           <>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-stone-800 mb-1">ספר המתכונים</h1>
-              <p className="text-stone-500 text-sm">After Taste Kitchen — {Object.values(recipeCounts).reduce((a, b) => a + b, 0)} מתכונים</p>
+            <div className="mb-7">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-1 h-7 bg-gradient-to-b from-amber-400 to-amber-200 rounded-full shrink-0" />
+                <h1 className="text-xl sm:text-2xl font-bold text-stone-800 tracking-tight">ספר המתכונים</h1>
+              </div>
+              <p className="text-stone-400 text-sm mr-4">After Taste Kitchen — {Object.values(recipeCounts).reduce((a, b) => a + b, 0)} מתכונים</p>
             </div>
             <SearchBar value={search} onChange={setSearch} />
 
@@ -527,13 +586,16 @@ export default function App() {
 
             {/* ── Embedded Chef Chat ── */}
             <div className="mt-8 bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200 bg-amber-50/60" dir="rtl">
-                <div className="w-9 h-9 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-lg shrink-0">
-                  👨‍🍳
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-100 bg-stone-50/60" dir="rtl">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/>
+                    <line x1="6" y1="17" x2="18" y2="17"/>
+                  </svg>
                 </div>
                 <div className="flex-1">
-                  <div className="font-bold text-stone-800 text-sm">שאל את השף</div>
-                  <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים — תשובות מהירות</div>
+                  <div className="font-semibold text-stone-800 text-sm tracking-tight">שאל את השף</div>
+                  <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים</div>
                 </div>
                 <button
                   onClick={() => setChatExpanded(true)}
@@ -554,12 +616,15 @@ export default function App() {
               <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden"
                      style={{ height: 'min(80vh, 700px)' }}>
-                  <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-200 bg-amber-50/60 shrink-0" dir="rtl">
-                    <div className="w-9 h-9 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-lg shrink-0">
-                      👨‍🍳
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-100 bg-stone-50/60 shrink-0" dir="rtl">
+                    <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/>
+                        <line x1="6" y1="17" x2="18" y2="17"/>
+                      </svg>
                     </div>
                     <div className="flex-1">
-                      <div className="font-bold text-stone-800 text-sm">שאל את השף</div>
+                      <div className="font-semibold text-stone-800 text-sm tracking-tight">שאל את השף</div>
                       <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים</div>
                     </div>
                     <button
@@ -624,7 +689,14 @@ export default function App() {
       )}
 
       {/* Global floating chef chat */}
-      <FloatingChat messages={chatMessages} loading={chatLoading} onSend={sendChatMessage} currentRecipe={selectedRecipe} />
+      <FloatingChat
+        open={chatOpen}
+        onToggle={() => setChatOpen(o => !o)}
+        messages={chatMessages}
+        loading={chatLoading}
+        onSend={sendChatMessage}
+        currentRecipe={selectedRecipe}
+      />
     </div>
   )
 }
