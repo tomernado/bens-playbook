@@ -335,10 +335,11 @@ export default function App() {
   const [showAddRecipe, setShowAddRecipe] = useState(false)
 
   // ── Chat ─────────────────────────────────────────────────────────────
-  const [chatMessages, setChatMessages] = useState([])
-  const [chatLoading, setChatLoading]   = useState(false)
-  const [chatExpanded, setChatExpanded] = useState(false)
-  const [chatOpen, setChatOpen]         = useState(false)
+  const [chatMessages, setChatMessages]   = useState([])
+  const [chatLoading, setChatLoading]     = useState(false)
+  const [chatExpanded, setChatExpanded]   = useState(false)
+  const [chatOpen, setChatOpen]           = useState(false)
+  const [isPlanningMode, setIsPlanningMode] = useState(false)
 
   // Persistent anonymous user ID
   const [userId] = useState(() => {
@@ -657,6 +658,19 @@ export default function App() {
                   <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים</div>
                 </div>
                 <button
+                  type="button"
+                  onClick={() => setIsPlanningMode(p => !p)}
+                  className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
+                    ${isPlanningMode
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
+                >
+                  🗓 תכנון
+                  {isPlanningMode && (
+                    <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
+                  )}
+                </button>
+                <button
                   onClick={() => setChatExpanded(true)}
                   className="w-8 h-8 rounded-lg hover:bg-amber-100 flex items-center justify-center
                              text-stone-400 hover:text-amber-700 transition-colors shrink-0"
@@ -669,14 +683,15 @@ export default function App() {
               </div>
               <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage}
                 compact onBookmark={toggleBookmark} bookmarkedMsgs={bookmarkedMsgs}
-                onFetchBookmarks={fetchBookmarks} onDeleteBookmark={deleteBookmarkById} />
+                onFetchBookmarks={fetchBookmarks} onDeleteBookmark={deleteBookmarkById}
+                isPlanningMode={isPlanningMode} />
             </div>
 
             {/* Fullscreen chat modal */}
             {chatExpanded && (
               <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden"
-                     style={{ height: 'min(80vh, 700px)' }}>
+                     style={{ height: 'min(88vh, 820px)' }}>
                   <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-100 bg-stone-50/60 shrink-0" dir="rtl">
                     <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-600">
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -688,6 +703,19 @@ export default function App() {
                       <div className="font-semibold text-stone-800 text-sm tracking-tight">שאל את השף</div>
                       <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים</div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsPlanningMode(p => !p)}
+                      className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
+                        ${isPlanningMode
+                          ? 'bg-amber-500 text-white shadow-sm'
+                          : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
+                    >
+                      🗓 תכנון
+                      {isPlanningMode && (
+                        <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
+                      )}
+                    </button>
                     <button
                       onClick={() => setChatExpanded(false)}
                       className="w-8 h-8 rounded-lg hover:bg-amber-100 flex items-center justify-center
@@ -702,7 +730,8 @@ export default function App() {
                   <div className="flex-1 overflow-hidden">
                     <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage}
                       onBookmark={toggleBookmark} bookmarkedMsgs={bookmarkedMsgs}
-                      onFetchBookmarks={fetchBookmarks} onDeleteBookmark={deleteBookmarkById} />
+                      onFetchBookmarks={fetchBookmarks} onDeleteBookmark={deleteBookmarkById}
+                      isPlanningMode={isPlanningMode} />
                   </div>
                 </div>
               </div>
@@ -763,6 +792,8 @@ export default function App() {
         bookmarkedMsgs={bookmarkedMsgs}
         onFetchBookmarks={fetchBookmarks}
         onDeleteBookmark={deleteBookmarkById}
+        isPlanningMode={isPlanningMode}
+        onTogglePlanning={() => setIsPlanningMode(p => !p)}
       />
     </div>
   )

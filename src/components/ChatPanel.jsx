@@ -232,12 +232,40 @@ export default function ChatPanel({
   messages, loading, onSend, compact = false, currentRecipe = null,
   onBookmark = null, bookmarkedMsgs = [],
   onFetchBookmarks = null, onDeleteBookmark = null,
+  isPlanningMode = false,
 }) {
   const [tab, setTab]                   = useState('chat')
   const [input, setInput]               = useState('')
   const [useRecipeCtx, setUseRecipeCtx] = useState(true)
-  const [isPlanningMode, setPlanning]   = useState(false)
-  const bottomRef = useRef(null)
+  const [isListening, setIsListening]   = useState(false)
+  const recognitionRef                  = useRef(null)
+  const bottomRef                       = useRef(null)
+
+  function toggleVoice() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop()
+      return
+    }
+
+    const rec = new SR()
+    rec.lang = 'he-IL'
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+
+    rec.onresult = (e) => {
+      const transcript = e.results[0][0].transcript
+      setInput(prev => prev ? prev + ' ' + transcript : transcript)
+    }
+    rec.onend  = () => { setIsListening(false); recognitionRef.current = null }
+    rec.onerror = () => { setIsListening(false); recognitionRef.current = null }
+
+    recognitionRef.current = rec
+    rec.start()
+    setIsListening(true)
+  }
 
   useEffect(() => { setUseRecipeCtx(true) }, [currentRecipe?.id])
   useEffect(() => {
@@ -256,22 +284,29 @@ export default function ChatPanel({
   const savedCount = bookmarkedMsgs.length
 
   return (
-    <div className={`flex flex-col ${compact ? 'h-[380px]' : 'h-full'}`} dir="rtl">
+    <div className={`flex flex-col ${compact ? 'h-[460px]' : 'h-full'}`} dir="rtl">
 
       {/* ── Tab bar ── */}
-      <div className="flex shrink-0 border-b border-stone-100 bg-white">
-        {[
-          { id: 'chat',  label: 'צ׳אט' },
-          { id: 'saved', label: savedCount > 0 ? `שמורים (${savedCount})` : 'שמורים' },
-        ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 py-2.5 text-xs font-medium transition-colors relative
-              ${tab === t.id
-                ? 'text-amber-700 after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-amber-500 after:rounded-t'
-                : 'text-stone-400 hover:text-stone-600'}`}>
-            {t.label}
-          </button>
-        ))}
+      <div className="flex items-center shrink-0 border-b border-stone-100 bg-white px-3" dir="rtl">
+        {/* Main chat tab — takes all available space */}
+        <button onClick={() => setTab('chat')}
+          className={`flex-1 py-2.5 text-xs font-medium text-right transition-colors relative
+            ${tab === 'chat'
+              ? 'text-amber-700 after:absolute after:bottom-0 after:right-0 after:left-0 after:h-0.5 after:bg-amber-500 after:rounded-t'
+              : 'text-stone-400 hover:text-stone-600'}`}>
+          צ׳אט
+        </button>
+        {/* Saved — compact pill on the left */}
+        <button onClick={() => setTab('saved')}
+          className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all
+            ${tab === 'saved'
+              ? 'bg-amber-100 text-amber-700'
+              : savedCount > 0
+                ? 'bg-stone-100 text-amber-600 hover:bg-amber-50'
+                : 'text-stone-400 hover:text-stone-600 hover:bg-stone-100'}`}>
+          <StarIcon filled={savedCount > 0} className="w-3 h-3" />
+          {savedCount > 0 ? savedCount : 'שמורים'}
+        </button>
       </div>
 
       {/* ── Saved tab ── */}
@@ -346,10 +381,9 @@ export default function ChatPanel({
             <div ref={bottomRef} />
           </div>
 
-          {/* ── Context + Planning toggles ── */}
-          <div className="px-3 py-2 border-t border-stone-100 bg-white shrink-0 space-y-2" dir="rtl">
-            {/* Recipe context selector */}
-            {currentRecipe && (
+          {/* ── Recipe context toggle ── */}
+          {currentRecipe && (
+            <div className="px-3 py-2 border-t border-stone-100 bg-white shrink-0" dir="rtl">
               <div className="flex gap-1 p-1 bg-stone-100 rounded-xl">
                 <button type="button" onClick={() => setUseRecipeCtx(true)}
                   className={`flex-1 text-xs py-1.5 px-2 rounded-lg font-medium transition-all truncate text-right
@@ -359,27 +393,11 @@ export default function ChatPanel({
                 <button type="button" onClick={() => setUseRecipeCtx(false)}
                   className={`shrink-0 text-xs py-1.5 px-3 rounded-lg font-medium transition-all
                     ${!useRecipeCtx ? 'bg-white text-stone-700 shadow-sm border border-stone-200/60' : 'text-stone-500 hover:text-stone-700'}`}>
-                  שאלה כללית
+                  כללי
                 </button>
               </div>
-            )}
-
-            {/* Planning mode toggle */}
-            <button
-              type="button"
-              onClick={() => setPlanning(p => !p)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all
-                ${isPlanningMode
-                  ? 'bg-amber-500 text-white shadow-sm'
-                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
-            >
-              <span>🗓 מצב תכנון אירוע</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors
-                ${isPlanningMode ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-400'}`}>
-                {isPlanningMode ? 'פעיל' : 'כבוי'}
-              </span>
-            </button>
-          </div>
+            </div>
+          )}
 
           {/* ── Input bar ── */}
           <form onSubmit={handleSubmit} className="border-t border-stone-200 p-3 flex gap-2 bg-white shrink-0">
@@ -397,6 +415,24 @@ export default function ChatPanel({
                          ${isPlanningMode
                            ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-100'
                            : 'border-stone-200 focus:border-amber-400 focus:ring-amber-100'}`} />
+            {(window.SpeechRecognition || window.webkitSpeechRecognition) && (
+              <button
+                type="button"
+                onClick={toggleVoice}
+                title={isListening ? 'עצור האזנה' : 'הקלד בקול'}
+                className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors
+                  ${isListening
+                    ? 'bg-red-50 text-red-500 border border-red-200 animate-pulse'
+                    : 'bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+              </button>
+            )}
             <button type="submit" disabled={!input.trim() || loading}
               className="bg-amber-600 hover:bg-amber-700 active:bg-amber-800 disabled:opacity-40
                          text-white rounded-xl px-4 py-2.5 text-sm font-medium transition-colors shrink-0">

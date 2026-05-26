@@ -10,11 +10,11 @@ function ChefIcon({ className = 'w-4 h-4' }) {
   )
 }
 
-export default function FloatingChat({ open, onToggle, messages, loading, onSend, currentRecipe = null, onBookmark = null, bookmarkedMsgs = [], onFetchBookmarks = null, onDeleteBookmark = null }) {
-  const [side, setSide]               = useState('right')
-  const [expanded, setExpanded]       = useState(false)
-  const [mobileHeight, setMobileHeight] = useState(55) // % of viewport height
-  const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 640)
+export default function FloatingChat({ open, onToggle, messages, loading, onSend, currentRecipe = null, onBookmark = null, bookmarkedMsgs = [], onFetchBookmarks = null, onDeleteBookmark = null, isPlanningMode = false, onTogglePlanning = null }) {
+  const [side, setSide]                 = useState('right')
+  const [expanded, setExpanded]         = useState(false)
+  const [mobileHeight, setMobileHeight] = useState(70) // % of viewport height
+  const [isMobile, setIsMobile]         = useState(() => window.innerWidth < 640)
 
   const isDragging  = useRef(false)
   const startY      = useRef(0)
@@ -39,7 +39,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
       if (ev.cancelable) ev.preventDefault()
       const y   = ev.touches ? ev.touches[0].clientY : ev.clientY
       const dvh = ((startY.current - y) / window.innerHeight) * 100
-      setMobileHeight(prev => Math.max(25, Math.min(88, startHeight.current + dvh)))
+      setMobileHeight(prev => Math.max(30, Math.min(92, startHeight.current + dvh)))
     }
     function onEnd() {
       isDragging.current = false
@@ -61,6 +61,8 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
       ? 'translate-y-full sm:translate-y-0 sm:translate-x-full'
       : 'translate-y-full sm:translate-y-0 sm:-translate-x-full'
 
+  const panelStyle = isMobile ? { height: `${mobileHeight}vh` } : { width: '27rem' }
+
   return (
     <>
       {/* Panel ─ mobile: bottom sheet │ desktop: side panel */}
@@ -68,13 +70,13 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
         className={`fixed z-50 flex flex-col shadow-2xl
           transition-transform duration-300 ease-in-out
           left-0 right-0 bottom-0 rounded-t-2xl border-t border-stone-200 bg-white
-          sm:top-0 sm:bottom-0 sm:rounded-none sm:border-t-0 sm:w-[22rem]
+          sm:top-0 sm:bottom-0 sm:rounded-none sm:border-t-0
           sm:bg-white/97 sm:backdrop-blur-sm
           ${isRight
             ? 'sm:right-0 sm:left-auto sm:border-l sm:border-stone-200'
             : 'sm:left-0 sm:right-auto sm:border-r sm:border-stone-200'}
           ${slideCls}`}
-        style={isMobile ? { height: `${mobileHeight}vh` } : {}}
+        style={panelStyle}
         aria-hidden={!open}
       >
         {/* Drag handle — mobile only */}
@@ -95,6 +97,23 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
             <div className="font-semibold text-stone-800 text-sm leading-tight tracking-tight">שף After Taste</div>
             <div className="text-stone-400 text-[11px] truncate">מתכונים · טכניקות · תחליפים</div>
           </div>
+
+          {/* Planning mode toggle */}
+          {onTogglePlanning && (
+            <button
+              type="button"
+              onClick={onTogglePlanning}
+              className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
+                ${isPlanningMode
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
+            >
+              🗓 תכנון
+              {isPlanningMode && (
+                <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
+              )}
+            </button>
+          )}
 
           {/* Expand — desktop only */}
           <button
@@ -130,7 +149,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} />
+          <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} isPlanningMode={isPlanningMode} />
         </div>
       </div>
 
@@ -138,7 +157,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
       {expanded && (
         <div className="hidden sm:flex fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden"
-               style={{ height: 'min(80vh, 700px)' }}>
+               style={{ height: 'min(88vh, 820px)' }}>
             <div className="flex items-center gap-2 px-4 py-3 border-b border-stone-100 bg-stone-50/60 shrink-0" dir="rtl">
               <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 text-amber-500">
                 <ChefIcon className="w-4 h-4" />
@@ -147,6 +166,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
                 <div className="font-semibold text-stone-800 text-sm tracking-tight">שף After Taste</div>
                 <div className="text-stone-400 text-[11px]">מתכונים · טכניקות · תחליפים</div>
               </div>
+              {onTogglePlanning && <PlanningToggle />}
               <button
                 onClick={() => setExpanded(false)}
                 className="w-8 h-8 rounded-lg hover:bg-stone-200 flex items-center justify-center
@@ -158,7 +178,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} />
+              <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} isPlanningMode={isPlanningMode} />
             </div>
           </div>
         </div>
