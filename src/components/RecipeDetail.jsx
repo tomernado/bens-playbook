@@ -189,7 +189,7 @@ function StepRow({ step, checked, onChange, onSave, onDelete }) {
 }
 
 // ─── RECIPE DETAIL ─────────────────────────────────────────────────────────
-export default function RecipeDetail({ recipe: initialRecipe, onBack, onRecipeUpdate, eventIds, onToggleEvent }) {
+export default function RecipeDetail({ recipe: initialRecipe, onBack, onRecipeUpdate, eventIds, onToggleEvent, onDeleteRecipe = null, onUpdateRecipeNumber = null }) {
   const [recipe, setRecipe]       = useState(initialRecipe)
   const [ingRows, setIngRows]     = useState([])
   const [loading, setLoading]     = useState(true)
@@ -203,6 +203,28 @@ export default function RecipeDetail({ recipe: initialRecipe, onBack, onRecipeUp
   // ── Bulk steps edit
   const [bulkEdit, setBulkEdit]   = useState(false)
   const [bulkText, setBulkText]   = useState('')
+
+  // ── Recipe number inline edit
+  const [editingNumber, setEditingNumber] = useState(false)
+  const [numberInput, setNumberInput]     = useState('')
+
+  // ── Delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting]                   = useState(false)
+
+  async function saveNumber() {
+    const n = parseInt(numberInput)
+    if (!isNaN(n) && n > 0 && n !== recipe.recipe_number) {
+      await onUpdateRecipeNumber?.(recipe.id, n)
+      setRecipe(r => ({ ...r, recipe_number: n }))
+    }
+    setEditingNumber(false)
+  }
+
+  async function confirmDelete() {
+    setDeleting(true)
+    await onDeleteRecipe?.(recipe.id)
+  }
 
   useEffect(() => {
     setRecipe(initialRecipe)
@@ -329,6 +351,13 @@ export default function RecipeDetail({ recipe: initialRecipe, onBack, onRecipeUp
               className={`text-2xl touch-manipulation transition-all leading-none ${inEvent ? 'opacity-100 drop-shadow-sm' : 'opacity-25 hover:opacity-70'}`}
               title={inEvent ? 'הסר מתפריט אירוע' : 'הוסף לתפריט אירוע'}
             >{inEvent ? '⭐' : '☆'}</button>
+            {onDeleteRecipe && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-xs bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1"
+                title="מחק מתכון"
+              >🗑 מחק</button>
+            )}
             <button
               onClick={openMeta}
               className="text-xs bg-stone-100 hover:bg-amber-50 hover:text-amber-700 text-stone-600 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1"
@@ -337,9 +366,29 @@ export default function RecipeDetail({ recipe: initialRecipe, onBack, onRecipeUp
         </div>
 
         <div className="text-right">
-          <span className="inline-block bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full mb-1.5 font-mono">
-            #{String(recipe.recipe_number).padStart(2, '0')}
-          </span>
+          <div className="inline-flex items-center gap-1.5 mb-1.5">
+            {editingNumber ? (
+              <div className="flex items-center gap-1">
+                <span className="text-amber-600 font-mono text-xs font-bold">#</span>
+                <input
+                  type="number" min="1" value={numberInput}
+                  onChange={e => setNumberInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveNumber(); if (e.key === 'Escape') setEditingNumber(false) }}
+                  onBlur={saveNumber}
+                  autoFocus
+                  className="w-16 border border-amber-300 rounded-lg px-2 py-0.5 text-xs font-mono text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-200"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={onUpdateRecipeNumber ? () => { setNumberInput(String(recipe.recipe_number)); setEditingNumber(true) } : undefined}
+                className={`bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full font-mono ${onUpdateRecipeNumber ? 'hover:bg-amber-200 cursor-pointer' : 'cursor-default'}`}
+                title={onUpdateRecipeNumber ? 'לחץ לעריכת מספר' : undefined}
+              >
+                #{String(recipe.recipe_number).padStart(2, '0')}
+              </button>
+            )}
+          </div>
           <h1 className="text-2xl font-bold text-stone-900 leading-tight">{recipe.title}</h1>
           {recipe.title_en && <div className="text-stone-400 text-sm italic mt-0.5">{recipe.title_en}</div>}
         </div>
@@ -490,6 +539,31 @@ export default function RecipeDetail({ recipe: initialRecipe, onBack, onRecipeUp
         </div>
 
       </div>
+
+      {/* ── Delete confirmation modal ── */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center" dir="rtl">
+            <div className="text-3xl mb-3">🗑</div>
+            <h3 className="font-bold text-stone-800 text-lg mb-1">מחיקת המתכון</h3>
+            <p className="text-stone-500 text-sm mb-5">
+              האם למחוק את <span className="font-semibold text-stone-700">{recipe.title}</span>?<br />
+              <span className="text-red-500 text-xs">פעולה זו בלתי הפיכה.</span>
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 border border-stone-200 rounded-xl py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+              >ביטול</button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50"
+              >{deleting ? 'מוחק...' : 'מחק'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

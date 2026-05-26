@@ -10,11 +10,14 @@ function ChefIcon({ className = 'w-4 h-4' }) {
   )
 }
 
-export default function FloatingChat({ open, onToggle, messages, loading, onSend, currentRecipe = null, onBookmark = null, bookmarkedMsgs = [], onFetchBookmarks = null, onDeleteBookmark = null, isPlanningMode = false, onTogglePlanning = null }) {
+export default function FloatingChat({ open, onToggle, messages, loading, onSend, currentRecipe = null, onBookmark = null, bookmarkedMsgs = [], onFetchBookmarks = null, onDeleteBookmark = null, isPlanningMode = false, onTogglePlanning = null, isIngestMode = false, onToggleIngest = null, categories = [] }) {
   const [side, setSide]                 = useState('right')
   const [expanded, setExpanded]         = useState(false)
+  const [chatTab, setChatTab]           = useState('chat')
   const [mobileHeight, setMobileHeight] = useState(70) // % of viewport height
   const [isMobile, setIsMobile]         = useState(() => window.innerWidth < 640)
+
+  const savedCount = bookmarkedMsgs.length
 
   const isDragging  = useRef(false)
   const startY      = useRef(0)
@@ -115,6 +118,42 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
             </button>
           )}
 
+          {/* Ingest mode toggle */}
+          {onToggleIngest && (
+            <button
+              type="button"
+              onClick={onToggleIngest}
+              className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
+                ${isIngestMode
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
+            >
+              ➕ הוספה
+              {isIngestMode && (
+                <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
+              )}
+            </button>
+          )}
+
+          {/* Saved bookmarks toggle */}
+          <button
+            type="button"
+            onClick={() => setChatTab(t => t === 'saved' ? 'chat' : 'saved')}
+            title="החלטות שמורות"
+            className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all
+              ${chatTab === 'saved'
+                ? 'bg-amber-100 text-amber-700'
+                : savedCount > 0
+                  ? 'bg-stone-100 text-amber-600 hover:bg-amber-50'
+                  : 'bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24"
+              fill={savedCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            {savedCount > 0 && <span>{savedCount}</span>}
+          </button>
+
           {/* Expand — desktop only */}
           <button
             onClick={() => setExpanded(true)}
@@ -149,7 +188,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} isPlanningMode={isPlanningMode} />
+          <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} isPlanningMode={isPlanningMode} isIngestMode={isIngestMode} tab={chatTab} onTabChange={setChatTab} categories={categories} />
         </div>
       </div>
 
@@ -166,7 +205,40 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
                 <div className="font-semibold text-stone-800 text-sm tracking-tight">שף After Taste</div>
                 <div className="text-stone-400 text-[11px]">מתכונים · טכניקות · תחליפים</div>
               </div>
-              {onTogglePlanning && <PlanningToggle />}
+              {onTogglePlanning && (
+                <button
+                  type="button"
+                  onClick={onTogglePlanning}
+                  className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
+                    ${isPlanningMode ? 'bg-amber-500 text-white shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
+                >
+                  🗓 תכנון
+                  {isPlanningMode && <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>}
+                </button>
+              )}
+              {onToggleIngest && (
+                <button
+                  type="button"
+                  onClick={onToggleIngest}
+                  className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
+                    ${isIngestMode ? 'bg-emerald-500 text-white shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
+                >
+                  ➕ הוספה
+                  {isIngestMode && <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setChatTab(t => t === 'saved' ? 'chat' : 'saved')}
+                className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all
+                  ${chatTab === 'saved' ? 'bg-amber-100 text-amber-700' : savedCount > 0 ? 'bg-stone-100 text-amber-600 hover:bg-amber-50' : 'bg-stone-100 text-stone-400 hover:bg-stone-200'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24"
+                  fill={savedCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                {savedCount > 0 && <span>{savedCount}</span>}
+              </button>
               <button
                 onClick={() => setExpanded(false)}
                 className="w-8 h-8 rounded-lg hover:bg-stone-200 flex items-center justify-center
@@ -178,7 +250,7 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} isPlanningMode={isPlanningMode} />
+              <ChatPanel messages={messages} loading={loading} onSend={onSend} currentRecipe={currentRecipe} onBookmark={onBookmark} bookmarkedMsgs={bookmarkedMsgs} onFetchBookmarks={onFetchBookmarks} onDeleteBookmark={onDeleteBookmark} isPlanningMode={isPlanningMode} isIngestMode={isIngestMode} tab={chatTab} onTabChange={setChatTab} categories={categories} />
             </div>
           </div>
         </div>

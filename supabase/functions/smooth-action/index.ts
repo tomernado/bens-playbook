@@ -8,6 +8,28 @@ const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+// ── Ingest-mode system prompt ──────────────────────────────────────────────
+const SYSTEM_INGEST = `You are a recipe data extraction tool. Extract structured recipe data from the provided text or image.
+
+OUTPUT FORMAT (mandatory — output NOTHING else):
+1. One short Hebrew success line: "✅ מתכון חולץ בהצלחה: [title]"
+2. Immediately followed by a JSON block wrapped in <insert_recipe_stream> tags.
+
+JSON schema (use null for unknown fields):
+{
+  "title": "Hebrew recipe name",
+  "title_en": "English recipe name or null",
+  "cook_time": "e.g. 45 דקות or null",
+  "texture": "Short one-line description/notes or null",
+  "ingredients": ["ingredient with quantity", "..."],
+  "steps": ["Step 1 text", "Step 2 text", "..."]
+}
+
+RULES:
+- ingredients: array of strings, one per ingredient including its quantity.
+- steps: array of strings, one per instruction step, no numbering prefix.
+- Output only the success line + the <insert_recipe_stream>...</insert_recipe_stream> block. No other text.`
+
 // ── Two-mode system prompt ─────────────────────────────────────────────────
 const SYSTEM_BASE = `You are a Senior Sous-Chef (סו-שף בכיר) in a top-tier kitchen. Professional, patient, precise — no fluff.
 
@@ -116,8 +138,109 @@ Deno.serve(async (req) => {
       )
     }
 
+    // ── Recipe: delete ────────────────────────────────────────────────
+    if (action === 'delete_recipe') {
+      const { recipeId } = body
+      await db.from('ingredients').delete().eq('recipe_id', recipeId)
+      await db.from('event_menu').delete().eq('recipe_id', recipeId)
+      await db.from('chat_bookmarks').delete().eq('recipe_id', recipeId)
+      const { error } = await db.from('recipes').delete().eq('id', recipeId)
+      if (error) throw new Error(error.message)
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS })
+    }
+
+    // ── Recipe: update number ─────────────────────────────────────────
+    if (action === 'update_recipe_number') {
+      const { recipeId, newNumber } = body
+      const { error } = await db.from('recipes').update({ recipe_number: Number(newNumber) }).eq('id', recipeId)
+      if (error) throw new Error(error.message)
+      return new Response(JSON.stringify({ ok: true }), { headers: JSON_HEADERS })
+    }
+
     // ── Chat completion ───────────────────────────────────────────────
-    const { messages, currentRecipeId, isPlanningMode = false } = body
+    const {
+      messages, currentRecipeId,
+      isPlanningMode = false, isIngestMode = false,
+      imageBase64 = null, imageMime = 'image/jpeg',
+      selectedCategoryId = null,
+      recipeNumber = null,
+    } = body
+
+    type AnthropicMessage = { role: string; content: string | unknown[] }
+
+    // ── INGEST MODE: isolated single-turn extraction + auto-commit ────
+    if (isIngestMode) {
+      // 1. Single-turn slice — only the current user message matters (no index needed; category is user-selected)
+      const msgSlice: AnthropicMessage[] = messages.slice(-2).map((m: AnthropicMessage) => ({ ...m }))
+
+      // 3. Attach image if provided
+      if (imageBase64 && msgSlice.length > 0) {
+        const li = msgSlice.length - 1
+        if (msgSlice[li].role === 'user') {
+          const txt = typeof msgSlice[li].content === 'string' ? msgSlice[li].content as string : String(msgSlice[li].content)
+          msgSlice[li] = {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: imageMime, data: imageBase64 } },
+              { type: 'text', text: txt },
+            ],
+          }
+        }
+      }
+
+      const ingestRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 400,
+          system: SYSTEM_INGEST,
+          messages: msgSlice,
+        }),
+      })
+      const ingestResult = await ingestRes.json()
+      if (!ingestRes.ok) throw new Error(`Anthropic ${ingestRes.status}: ${JSON.stringify(ingestResult)}`)
+
+      let responseText: string = ingestResult.content[0].text
+
+      // 4. Extract JSON and auto-commit to DB
+      const tagMatch = responseText.match(/<insert_recipe_stream>([\s\S]*?)<\/insert_recipe_stream>/)
+      if (tagMatch) {
+        try {
+          const parsed = JSON.parse(tagMatch[1].trim())
+
+          // Insert recipe — number only if user provided one
+          const recipeInsert: Record<string, unknown> = {
+            title:        parsed.title,
+            title_en:     parsed.title_en ?? null,
+            category_id:  selectedCategoryId ?? null,
+            cook_time:    parsed.cook_time ?? null,
+            texture:      parsed.texture ?? null,
+            instructions: (parsed.steps ?? []).map((body: string, i: number) => ({ step: i + 1, body })),
+            vibe_tags:    [],
+          }
+          if (recipeNumber != null) recipeInsert.recipe_number = Number(recipeNumber)
+
+          const { data: newRecipe, error: recipeErr } = await db.from('recipes').insert(recipeInsert).select('id').single()
+
+          if (!recipeErr && newRecipe) {
+            const ingRows = (parsed.ingredients ?? []).map((raw_text: string, i: number) => ({
+              recipe_id: newRecipe.id, raw_text, sort_order: i,
+            }))
+            if (ingRows.length > 0) await db.from('ingredients').insert(ingRows)
+          }
+        } catch (parseErr) {
+          console.error('[ingest] parse/insert error:', parseErr)
+        }
+
+        // Strip the XML/JSON block — user only sees the success confirmation line
+        responseText = responseText.replace(/<insert_recipe_stream>[\s\S]*?<\/insert_recipe_stream>/g, '').trim()
+      }
+
+      return new Response(JSON.stringify({ content: responseText }), { headers: JSON_HEADERS })
+    }
+
+    // ── NORMAL CHAT MODE ──────────────────────────────────────────────
 
     // 1. Recipe index
     const { data: idxRaw } = await db
@@ -155,19 +278,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Build system + index (no bookmark injection — bookmarks are UI-only)
+    // 4. Build system + index
     const indexLine = index.map(r =>
       `#${r.recipe_number} ${r.title}${r.title_en ? `/${r.title_en}` : ''}`
     ).join(' | ')
 
-    const systemPrompt  = isPlanningMode ? SYSTEM_PLANNING : SYSTEM_SERVICE
-    const finalSystem   = `${systemPrompt}\n\nRECIPE INDEX:\n${indexLine}${recipeBlock}`
+    const systemPrompt = isPlanningMode ? SYSTEM_PLANNING : SYSTEM_SERVICE
+    const finalSystem  = `${systemPrompt}\n\nRECIPE INDEX:\n${indexLine}${recipeBlock}`
 
-    // 5. Token routing based on mode
-    const maxTokens     = isPlanningMode ? 800 : 300
-    const messageSlice  = isPlanningMode ? messages.slice(-100) : messages.slice(-6)
+    // 5. Token routing
+    const maxTokens    = isPlanningMode ? 800 : 300
+    const messageSlice = isPlanningMode ? messages.slice(-100) : messages.slice(-6)
 
-    // 6. Call Anthropic
+    // 6. Attach image to last user message if provided
+    const apiMessages: AnthropicMessage[] = messageSlice.map((m: AnthropicMessage) => ({ ...m }))
+    if (imageBase64 && apiMessages.length > 0) {
+      const lastIdx = apiMessages.length - 1
+      const last = apiMessages[lastIdx]
+      if (last.role === 'user') {
+        const textContent = typeof last.content === 'string' ? last.content : String(last.content)
+        apiMessages[lastIdx] = {
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: imageMime, data: imageBase64 } },
+            { type: 'text', text: textContent },
+          ],
+        }
+      }
+    }
+
+    // 7. Call Anthropic
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -179,7 +319,7 @@ Deno.serve(async (req) => {
         model:      'claude-haiku-4-5-20251001',
         max_tokens: maxTokens,
         system:     finalSystem,
-        messages:   messageSlice,
+        messages:   apiMessages,
       }),
     })
 

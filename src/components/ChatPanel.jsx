@@ -233,13 +233,49 @@ export default function ChatPanel({
   onBookmark = null, bookmarkedMsgs = [],
   onFetchBookmarks = null, onDeleteBookmark = null,
   isPlanningMode = false,
+  isIngestMode = false,
+  tab: tabProp = null, onTabChange = null,
+  categories = [],
 }) {
-  const [tab, setTab]                   = useState('chat')
-  const [input, setInput]               = useState('')
-  const [useRecipeCtx, setUseRecipeCtx] = useState(true)
-  const [isListening, setIsListening]   = useState(false)
-  const recognitionRef                  = useRef(null)
-  const bottomRef                       = useRef(null)
+  const [tabLocal, setTabLocal]             = useState('chat')
+  const tab    = tabProp    ?? tabLocal
+  const setTab = onTabChange ?? setTabLocal
+  const [input, setInput]                   = useState('')
+  const [useRecipeCtx, setUseRecipeCtx]     = useState(true)
+  const [isListening, setIsListening]       = useState(false)
+  const [imageBase64, setImageBase64]       = useState(null)
+  const [imagePreview, setImagePreview]     = useState(null)
+  const [imageMime, setImageMime]           = useState('image/jpeg')
+  const [selectedCategoryId, setSelectedCategoryId]   = useState(null)
+  const [selectedRecipeNumber, setSelectedRecipeNumber] = useState('')
+  const recognitionRef                                  = useRef(null)
+  const fileInputRef                                    = useRef(null)
+  const bottomRef                                       = useRef(null)
+
+  useEffect(() => {
+    if (!isIngestMode) { setSelectedCategoryId(null); setSelectedRecipeNumber('') }
+  }, [isIngestMode])
+
+  function handleImageSelect(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageMime(file.type || 'image/jpeg')
+    setImagePreview(URL.createObjectURL(file))
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      // strip the data:image/...;base64, prefix
+      const b64 = ev.target.result.split(',')[1]
+      setImageBase64(b64)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  function clearImage() {
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImageBase64(null)
+    setImagePreview(null)
+  }
 
   function toggleVoice() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -275,10 +311,14 @@ export default function ChatPanel({
   function handleSubmit(e) {
     e.preventDefault()
     const text = input.trim()
-    if (!text || loading) return
+    if ((!text && !imageBase64) || loading) return
     setInput('')
+    const img = imageBase64
+    const mime = imageMime
+    clearImage()
     const contextId = (currentRecipe && useRecipeCtx) ? currentRecipe.id : null
-    onSend(text, contextId, isPlanningMode)
+    const recipeNum = selectedRecipeNumber !== '' ? parseInt(selectedRecipeNumber) : null
+    onSend(text || '(תמונה)', contextId, isPlanningMode, img, mime, isIngestMode, selectedCategoryId, recipeNum)
   }
 
   const savedCount = bookmarkedMsgs.length
@@ -288,7 +328,6 @@ export default function ChatPanel({
 
       {/* ── Tab bar ── */}
       <div className="flex items-center shrink-0 border-b border-stone-100 bg-white px-3" dir="rtl">
-        {/* Main chat tab — takes all available space */}
         <button onClick={() => setTab('chat')}
           className={`flex-1 py-2.5 text-xs font-medium text-right transition-colors relative
             ${tab === 'chat'
@@ -296,17 +335,19 @@ export default function ChatPanel({
               : 'text-stone-400 hover:text-stone-600'}`}>
           צ׳אט
         </button>
-        {/* Saved — compact pill on the left */}
-        <button onClick={() => setTab('saved')}
-          className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all
-            ${tab === 'saved'
-              ? 'bg-amber-100 text-amber-700'
-              : savedCount > 0
-                ? 'bg-stone-100 text-amber-600 hover:bg-amber-50'
-                : 'text-stone-400 hover:text-stone-600 hover:bg-stone-100'}`}>
-          <StarIcon filled={savedCount > 0} className="w-3 h-3" />
-          {savedCount > 0 ? savedCount : 'שמורים'}
-        </button>
+        {/* Only show saved tab pill when not controlled by parent (embedded chat) */}
+        {!onTabChange && (
+          <button onClick={() => setTab('saved')}
+            className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all
+              ${tab === 'saved'
+                ? 'bg-amber-100 text-amber-700'
+                : savedCount > 0
+                  ? 'bg-stone-100 text-amber-600 hover:bg-amber-50'
+                  : 'text-stone-400 hover:text-stone-600 hover:bg-stone-100'}`}>
+            <StarIcon filled={savedCount > 0} className="w-3 h-3" />
+            {savedCount > 0 ? savedCount : 'שמורים'}
+          </button>
+        )}
       </div>
 
       {/* ── Saved tab ── */}
@@ -399,22 +440,90 @@ export default function ChatPanel({
             </div>
           )}
 
+          {/* ── Image preview ── */}
+          {imagePreview && (
+            <div className="px-3 pt-2 bg-white shrink-0 flex items-start gap-2" dir="rtl">
+              <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-stone-200 shadow-sm shrink-0">
+                <img src={imagePreview} alt="תמונה שנבחרה" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-stone-800/70 text-white
+                             flex items-center justify-center text-[10px] leading-none hover:bg-red-500 transition-colors"
+                >×</button>
+              </div>
+              <span className="text-[11px] text-stone-400 mt-1">תמונה מצורפת</span>
+            </div>
+          )}
+
+          {/* ── Category + number picker (ingest mode) ── */}
+          {isIngestMode && (
+            <div className="px-3 pt-2 pb-1 bg-white shrink-0 border-t border-stone-100 flex gap-2" dir="rtl">
+              {categories.length > 0 && (
+                <select
+                  value={selectedCategoryId ?? ''}
+                  onChange={e => setSelectedCategoryId(e.target.value || null)}
+                  className="flex-1 border border-emerald-200 rounded-xl px-3 py-2 text-sm text-right focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-white text-stone-700"
+                >
+                  <option value="">קטגוריה...</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.emoji} {cat.name}</option>
+                  ))}
+                </select>
+              )}
+              <input
+                type="number" min="1"
+                value={selectedRecipeNumber}
+                onChange={e => setSelectedRecipeNumber(e.target.value)}
+                placeholder="מס׳"
+                className="w-20 border border-emerald-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-white text-stone-700"
+              />
+            </div>
+          )}
+
           {/* ── Input bar ── */}
           <form onSubmit={handleSubmit} className="border-t border-stone-200 p-3 flex gap-2 bg-white shrink-0">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
             <input value={input} onChange={e => setInput(e.target.value)}
               placeholder={
-                isPlanningMode
-                  ? 'תכנן תפריט לאירוע...'
-                  : currentRecipe && useRecipeCtx
-                    ? `שאל על ${currentRecipe.title}...`
-                    : 'שאל את השף...'
+                isIngestMode
+                  ? 'הדבק טקסט, צלם מתכון או הקלט קול להוספה אוטומטית...'
+                  : isPlanningMode
+                    ? 'תכנן תפריט לאירוע...'
+                    : currentRecipe && useRecipeCtx
+                      ? `שאל על ${currentRecipe.title}...`
+                      : 'שאל את השף...'
               }
               disabled={loading} autoComplete="off"
               className={`flex-1 border rounded-xl px-4 py-2.5 text-sm transition-colors
                          focus:outline-none focus:ring-2 disabled:opacity-50 bg-white placeholder-stone-400
-                         ${isPlanningMode
-                           ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-100'
-                           : 'border-stone-200 focus:border-amber-400 focus:ring-amber-100'}`} />
+                         ${isIngestMode
+                           ? 'border-emerald-300 focus:border-emerald-400 focus:ring-emerald-100'
+                           : isPlanningMode
+                             ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-100'
+                             : 'border-stone-200 focus:border-amber-400 focus:ring-amber-100'}`} />
+            {/* Paperclip — image upload */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              title="צרף תמונה"
+              className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors
+                ${imageBase64
+                  ? 'bg-amber-100 text-amber-600 border border-amber-300'
+                  : 'bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600'}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+
             {(window.SpeechRecognition || window.webkitSpeechRecognition) && (
               <button
                 type="button"

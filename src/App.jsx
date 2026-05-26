@@ -340,6 +340,18 @@ export default function App() {
   const [chatExpanded, setChatExpanded]   = useState(false)
   const [chatOpen, setChatOpen]           = useState(false)
   const [isPlanningMode, setIsPlanningMode] = useState(false)
+  const [isIngestMode, setIsIngestMode]   = useState(false)
+  const [embeddedTab, setEmbeddedTab]     = useState('chat')
+  const [showChatHelp, setShowChatHelp]   = useState(false)
+
+  function clearChat() { setChatMessages([]) }
+
+  function togglePlanning() {
+    setIsPlanningMode(v => { if (!v) setIsIngestMode(false); return !v })
+  }
+  function toggleIngest() {
+    setIsIngestMode(v => { if (!v) setIsPlanningMode(false); return !v })
+  }
 
   // Persistent anonymous user ID
   const [userId] = useState(() => {
@@ -403,7 +415,50 @@ export default function App() {
 
   const chatHasNew = !chatOpen && chatMessages.length > 0 && chatMessages.at(-1)?.role === 'assistant'
 
-  async function sendChatMessage(text, contextId = null, isPlanningMode = false) {
+  async function deleteRecipe(recipeId) {
+    try {
+      await supabase.from('event_menu').delete().eq('recipe_id', recipeId)
+      await supabase.from('chat_bookmarks').delete().eq('recipe_id', recipeId)
+      await supabase.from('ingredients').delete().eq('recipe_id', recipeId)
+      const { error } = await supabase.from('recipes').delete().eq('id', recipeId)
+      if (error) throw new Error(error.message)
+
+      setSelectedRecipe(null)
+      if (selectedCat) {
+        setView('category')
+        loadRecipesForCat(selectedCat.id)
+      } else {
+        setView('dashboard')
+      }
+      loadEventIds()
+      supabase.from('recipes').select('category_id').then(({ data: rows }) => {
+        if (rows) {
+          const counts = {}
+          rows.forEach(r => { counts[r.category_id] = (counts[r.category_id] || 0) + 1 })
+          setRecipeCounts(counts)
+        }
+      })
+    } catch (err) {
+      console.error('[deleteRecipe]', err)
+      alert('שגיאה במחיקת המתכון: ' + err.message)
+    }
+  }
+
+  async function updateRecipeNumber(recipeId, newNumber) {
+    try {
+      await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CHAT_KEY}` },
+        body: JSON.stringify({ action: 'update_recipe_number', recipeId, newNumber }),
+      })
+      const updated = { ...selectedRecipe, recipe_number: Number(newNumber) }
+      setSelectedRecipe(updated)
+      setRecipes(prev => prev.map(r => r.id === recipeId ? updated : r))
+    } catch {}
+  }
+
+  async function sendChatMessage(text, contextId = null, isPlanningMode = false, imageBase64 = null, imageMime = 'image/jpeg', isIngestMode = false, selectedCategoryId = null, recipeNumber = null) {
+    // Keep history as plain text — images are one-shot, never stored
     const next = [...chatMessages, { role: 'user', content: text }]
     setChatMessages(next)
     setChatLoading(true)
@@ -415,10 +470,15 @@ export default function App() {
           'Authorization': `Bearer ${CHAT_KEY}`,
         },
         body: JSON.stringify({
-          messages:        next,
-          currentRecipeId: contextId,
+          messages:           next,
+          currentRecipeId:    contextId,
           isPlanningMode,
+          isIngestMode,
           userId,
+          imageBase64:        imageBase64 ?? undefined,
+          imageMime:          imageBase64 ? imageMime : undefined,
+          selectedCategoryId: selectedCategoryId ?? undefined,
+          recipeNumber:       recipeNumber ?? undefined,
         }),
       })
       const data = await res.json()
@@ -539,14 +599,18 @@ export default function App() {
     <div className="min-h-screen" style={{ background: 'linear-gradient(170deg, #faf9f6 0%, #f4f2ed 100%)' }} dir="rtl">
 
       {/* ── Header ── */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-stone-100 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <button onClick={goHome}
-            className="font-bold text-stone-800 text-base tracking-tight hover:text-amber-600 transition-colors shrink-0 flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
-            </svg>
-            After Taste
+      <header className="bg-white/95 backdrop-blur-sm border-b border-stone-100 sticky top-0 z-40 shadow-[0_1px_8px_-2px_rgba(0,0,0,0.06)]">
+        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+          <button onClick={goHome} className="shrink-0 flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-sm shrink-0 group-hover:scale-105 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+              </svg>
+            </div>
+            <div className="leading-tight text-right">
+              <div className="font-black text-stone-900 text-base sm:text-lg tracking-tight group-hover:text-amber-600 transition-colors">After Taste</div>
+              <div className="text-stone-400 text-[10px] font-medium hidden sm:block">מטבח · ספר המתכונים</div>
+            </div>
           </button>
 
           {selectedCat && view !== 'event' && (
@@ -608,8 +672,13 @@ export default function App() {
         {view === 'dashboard' && (
           <>
             <div className="mb-8 text-center">
-              <h1 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight mb-2">ספר המתכונים</h1>
-              <p className="text-stone-400 text-sm">After Taste Kitchen — {Object.values(recipeCounts).reduce((a, b) => a + b, 0)} מתכונים</p>
+              <div className="inline-flex items-center gap-1.5 text-amber-600 text-[11px] font-bold tracking-widest uppercase mb-3 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+                After Taste Kitchen
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-black text-stone-900 tracking-tight mb-2 leading-tight">
+                ספר <span className="text-amber-500">המתכונים</span>
+              </h1>
+              <p className="text-stone-400 text-sm font-medium">{Object.values(recipeCounts).reduce((a, b) => a + b, 0)} מתכונים במאגר</p>
             </div>
             <SearchBar value={search} onChange={setSearch} />
 
@@ -646,45 +715,70 @@ export default function App() {
 
             {/* ── Embedded Chef Chat ── */}
             <div className="mt-8 bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-100 bg-stone-50/60" dir="rtl">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/>
-                    <line x1="6" y1="17" x2="18" y2="17"/>
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-stone-800 text-sm tracking-tight">שאל את השף</div>
-                  <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsPlanningMode(p => !p)}
-                  className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
-                    ${isPlanningMode
-                      ? 'bg-amber-500 text-white shadow-sm'
-                      : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
-                >
-                  🗓 תכנון
-                  {isPlanningMode && (
-                    <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
+              <div className="px-4 pt-3 pb-2 border-b border-stone-100 bg-stone-50/60" dir="rtl">
+                {/* Row 1: identity + icon actions */}
+                <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/>
+                      <line x1="6" y1="17" x2="18" y2="17"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-stone-800 text-sm tracking-tight">שאל את השף</div>
+                    <div className="text-stone-400 text-[11px]">מתכונים · טכניקות · תחליפים</div>
+                  </div>
+                  {/* Help */}
+                  <button onClick={() => setShowChatHelp(true)}
+                    className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-amber-100 flex items-center justify-center text-stone-400 hover:text-amber-600 transition-colors text-xs font-bold shrink-0"
+                    title="מה אני יכול לשאול?">?</button>
+                  {/* Clear */}
+                  {chatMessages.length > 0 && (
+                    <button onClick={clearChat}
+                      className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-red-50 flex items-center justify-center text-stone-300 hover:text-red-400 transition-colors shrink-0"
+                      title="נקה שיחה">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/>
+                      </svg>
+                    </button>
                   )}
-                </button>
-                <button
-                  onClick={() => setChatExpanded(true)}
-                  className="w-8 h-8 rounded-lg hover:bg-amber-100 flex items-center justify-center
-                             text-stone-400 hover:text-amber-700 transition-colors shrink-0"
-                  title="הרחב"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                  </svg>
-                </button>
+                  {/* Expand */}
+                  <button onClick={() => setChatExpanded(true)}
+                    className="w-7 h-7 rounded-lg hover:bg-amber-100 flex items-center justify-center text-stone-400 hover:text-amber-700 transition-colors shrink-0"
+                    title="הרחב">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                  </button>
+                </div>
+                {/* Row 2: mode buttons */}
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={togglePlanning}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all
+                      ${isPlanningMode ? 'bg-amber-500 text-white shadow-sm' : 'bg-white border border-stone-200 text-stone-500 hover:border-amber-300 hover:text-amber-600'}`}>
+                    🗓 תכנון {isPlanningMode && <span className="text-[9px] font-bold bg-white/30 px-1 py-0.5 rounded-full">פעיל</span>}
+                  </button>
+                  <button type="button" onClick={toggleIngest}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all
+                      ${isIngestMode ? 'bg-emerald-500 text-white shadow-sm' : 'bg-white border border-stone-200 text-stone-500 hover:border-emerald-300 hover:text-emerald-600'}`}>
+                    ➕ הוספה {isIngestMode && <span className="text-[9px] font-bold bg-white/30 px-1 py-0.5 rounded-full">פעיל</span>}
+                  </button>
+                  <button type="button" onClick={() => setEmbeddedTab(t => t === 'saved' ? 'chat' : 'saved')}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all
+                      ${embeddedTab === 'saved' ? 'bg-amber-100 text-amber-700' : bookmarkedMsgs.length > 0 ? 'bg-white border border-stone-200 text-amber-500 hover:border-amber-300' : 'bg-white border border-stone-200 text-stone-400 hover:text-stone-600'}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24"
+                      fill={bookmarkedMsgs.length > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    {bookmarkedMsgs.length > 0 ? bookmarkedMsgs.length : 'שמורים'}
+                  </button>
+                </div>
               </div>
               <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage}
                 compact onBookmark={toggleBookmark} bookmarkedMsgs={bookmarkedMsgs}
                 onFetchBookmarks={fetchBookmarks} onDeleteBookmark={deleteBookmarkById}
-                isPlanningMode={isPlanningMode} />
+                isPlanningMode={isPlanningMode} isIngestMode={isIngestMode} tab={embeddedTab} onTabChange={setEmbeddedTab}
+                categories={categories} />
             </div>
 
             {/* Fullscreen chat modal */}
@@ -692,46 +786,63 @@ export default function App() {
               <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col overflow-hidden"
                      style={{ height: 'min(88vh, 820px)' }}>
-                  <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-100 bg-stone-50/60 shrink-0" dir="rtl">
-                    <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-600">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/>
-                        <line x1="6" y1="17" x2="18" y2="17"/>
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-stone-800 text-sm tracking-tight">שאל את השף</div>
-                      <div className="text-stone-400 text-xs">מתכונים, טכניקות, תחליפים</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsPlanningMode(p => !p)}
-                      className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
-                        ${isPlanningMode
-                          ? 'bg-amber-500 text-white shadow-sm'
-                          : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
-                    >
-                      🗓 תכנון
-                      {isPlanningMode && (
-                        <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
+                  <div className="px-4 pt-3 pb-2 border-b border-stone-100 bg-stone-50/60 shrink-0" dir="rtl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/>
+                          <line x1="6" y1="17" x2="18" y2="17"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-stone-800 text-sm tracking-tight">שאל את השף</div>
+                        <div className="text-stone-400 text-[11px]">מתכונים · טכניקות · תחליפים</div>
+                      </div>
+                      <button onClick={() => setShowChatHelp(true)}
+                        className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-amber-100 flex items-center justify-center text-stone-400 hover:text-amber-600 transition-colors text-xs font-bold shrink-0">?</button>
+                      {chatMessages.length > 0 && (
+                        <button onClick={clearChat}
+                          className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-red-50 flex items-center justify-center text-stone-300 hover:text-red-400 transition-colors shrink-0">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/>
+                          </svg>
+                        </button>
                       )}
-                    </button>
-                    <button
-                      onClick={() => setChatExpanded(false)}
-                      className="w-8 h-8 rounded-lg hover:bg-amber-100 flex items-center justify-center
-                                 text-stone-400 hover:text-amber-700 transition-colors shrink-0"
-                      title="מזער"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
-                      </svg>
-                    </button>
+                      <button onClick={() => setChatExpanded(false)}
+                        className="w-7 h-7 rounded-lg hover:bg-amber-100 flex items-center justify-center text-stone-400 hover:text-amber-700 transition-colors shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={togglePlanning}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all
+                          ${isPlanningMode ? 'bg-amber-500 text-white shadow-sm' : 'bg-white border border-stone-200 text-stone-500 hover:border-amber-300 hover:text-amber-600'}`}>
+                        🗓 תכנון {isPlanningMode && <span className="text-[9px] font-bold bg-white/30 px-1 py-0.5 rounded-full">פעיל</span>}
+                      </button>
+                      <button type="button" onClick={toggleIngest}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all
+                          ${isIngestMode ? 'bg-emerald-500 text-white shadow-sm' : 'bg-white border border-stone-200 text-stone-500 hover:border-emerald-300 hover:text-emerald-600'}`}>
+                        ➕ הוספה {isIngestMode && <span className="text-[9px] font-bold bg-white/30 px-1 py-0.5 rounded-full">פעיל</span>}
+                      </button>
+                      <button type="button" onClick={() => setEmbeddedTab(t => t === 'saved' ? 'chat' : 'saved')}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all
+                          ${embeddedTab === 'saved' ? 'bg-amber-100 text-amber-700' : bookmarkedMsgs.length > 0 ? 'bg-white border border-stone-200 text-amber-500 hover:border-amber-300' : 'bg-white border border-stone-200 text-stone-400 hover:text-stone-600'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24"
+                          fill={bookmarkedMsgs.length > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        {bookmarkedMsgs.length > 0 ? bookmarkedMsgs.length : 'שמורים'}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <ChatPanel messages={chatMessages} loading={chatLoading} onSend={sendChatMessage}
                       onBookmark={toggleBookmark} bookmarkedMsgs={bookmarkedMsgs}
                       onFetchBookmarks={fetchBookmarks} onDeleteBookmark={deleteBookmarkById}
-                      isPlanningMode={isPlanningMode} />
+                      isPlanningMode={isPlanningMode} isIngestMode={isIngestMode} tab={embeddedTab} onTabChange={setEmbeddedTab}
+                      categories={categories} />
                   </div>
                 </div>
               </div>
@@ -755,7 +866,9 @@ export default function App() {
               setSelectedRecipe(updated)
               setRecipes(prev => prev.map(r => r.id === updated.id ? updated : r))
             }}
-            eventIds={eventIds} onToggleEvent={toggleEvent} />
+            eventIds={eventIds} onToggleEvent={toggleEvent}
+            onDeleteRecipe={deleteRecipe}
+            onUpdateRecipeNumber={updateRecipeNumber} />
         )}
 
         {/* Event Menu */}
@@ -780,6 +893,51 @@ export default function App() {
           onSaved={() => loadRecipesForCat(selectedCat.id)} />
       )}
 
+      {/* ── Chat Help Modal ── */}
+      {showChatHelp && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowChatHelp(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" dir="rtl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
+              <h3 className="font-bold text-stone-800 text-base">יכולות הצ׳אט עם השף</h3>
+              <button onClick={() => setShowChatHelp(false)}
+                className="w-7 h-7 rounded-lg hover:bg-stone-100 flex items-center justify-center text-stone-400 hover:text-stone-600 text-xl leading-none">×</button>
+            </div>
+            <div className="p-4 space-y-3">
+              {[
+                {
+                  icon: '🍳',
+                  title: 'שאלות כלליות',
+                  desc: 'שאל כל שאלה על בישול — טכניקות, תחליפים, מרקמים, כמויות. השף מכיר את כל המתכונים שלך ויכול לעזור עם כל נושא.',
+                },
+                {
+                  icon: '📖',
+                  title: 'מתכון פעיל',
+                  desc: 'כשנמצאים בדף מתכון ספציפי, לחץ על שמו בתחתית הצ׳אט. השף יקבל את כל הפרטים — רכיבים, שלבים, כמויות — ויוכל לענות ספציפית.',
+                },
+                {
+                  icon: '🗓',
+                  title: 'מצב תכנון',
+                  desc: 'לחץ "תכנון" לתכנון תפריט אירוע שלם. השף מציע סינרגיות בין מנות, מדגיש קונפליקטים בתזמון, ומסדר סדר הגשה. מקבלים תגובות ארוכות ומפורטות.',
+                },
+                {
+                  icon: '➕',
+                  title: 'מצב הוספה',
+                  desc: 'לחץ "הוספה", בחר קטגוריה ומספר מנה, ואז שלח טקסט מתכון, תמונה, או הקלט בקול. השף יחלץ את הנתונים ויוסיף למאגר אוטומטית.',
+                },
+              ].map(item => (
+                <div key={item.title} className="flex gap-3 p-3 bg-stone-50 rounded-xl">
+                  <span className="text-2xl shrink-0 mt-0.5">{item.icon}</span>
+                  <div>
+                    <div className="font-semibold text-stone-800 text-sm mb-0.5">{item.title}</div>
+                    <div className="text-stone-500 text-xs leading-relaxed">{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Global floating chef chat */}
       <FloatingChat
         open={chatOpen}
@@ -793,7 +951,10 @@ export default function App() {
         onFetchBookmarks={fetchBookmarks}
         onDeleteBookmark={deleteBookmarkById}
         isPlanningMode={isPlanningMode}
-        onTogglePlanning={() => setIsPlanningMode(p => !p)}
+        onTogglePlanning={togglePlanning}
+        isIngestMode={isIngestMode}
+        onToggleIngest={toggleIngest}
+        categories={categories}
       />
     </div>
   )
