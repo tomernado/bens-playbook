@@ -119,28 +119,26 @@ export default function FloatingChat({ messages, loading, onSend, currentRecipe 
         </div>
       )}
 
-      {/* Glassmorphism FAB */}
-      <button
-        onClick={toggleOpen}
-        className={`fixed bottom-6 z-50 w-14 h-14 rounded-full
-          flex items-center justify-center text-2xl
-          transition-all duration-200 ease-in-out
-          shadow-lg backdrop-blur-md border border-white/20
-          ${isRight ? 'right-4' : 'left-4'}
-          ${open
-            ? 'bg-stone-600/80 text-white scale-95'
-            : 'bg-white hover:bg-amber-50 hover:scale-110 active:scale-90 border-2 border-amber-300 hover:border-amber-400 shadow-md'}`}
-        title="שאל את השף"
-        aria-label="פתח צ'אט עם השף"
-      >
-        <span className={`transition-transform duration-200 ${open ? 'rotate-45' : ''}`}>
-          {open ? '✕' : '👨‍🍳'}
-        </span>
-
-        {hasNewReply && !open && (
-          <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-green-500 border-2 border-white rounded-full animate-pulse" />
-        )}
-      </button>
+      {/* Glassmorphism FAB — hidden while panel is open */}
+      {!open && (
+        <button
+          onClick={toggleOpen}
+          className={`fixed bottom-6 z-50 w-14 h-14 rounded-full
+            flex items-center justify-center text-2xl
+            transition-all duration-200 ease-in-out
+            shadow-lg backdrop-blur-md
+            bg-white hover:bg-amber-50 hover:scale-110 active:scale-90
+            border-2 border-amber-300 hover:border-amber-400 shadow-md
+            ${isRight ? 'right-4' : 'left-4'}`}
+          title="שאל את השף"
+          aria-label="פתח צ'אט עם השף"
+        >
+          <span>👨‍🍳</span>
+          {hasNewReply && (
+            <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-green-500 border-2 border-white rounded-full animate-pulse" />
+          )}
+        </button>
+      )}
     </>
   )
 }
