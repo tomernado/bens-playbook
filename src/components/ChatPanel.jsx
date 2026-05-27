@@ -376,31 +376,31 @@ export default function ChatPanel({
               const isAssistant = msg.role === 'assistant'
               const isBookmarked = bookmarkedMsgs.includes(msg.content)
               return (
-                <div key={i} className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                <div key={i} className={`flex items-end gap-1.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                   {isAssistant && (
                     <div className="w-7 h-7 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-sm shrink-0 mb-0.5">
                       👨‍🍳
                     </div>
                   )}
-                  <div className={`relative group max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words
+                  <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words
                     ${msg.role === 'user'
                       ? 'bg-amber-50 border border-amber-200 text-amber-900 rounded-tr-sm shadow-sm'
                       : 'bg-white border border-stone-200 text-stone-800 rounded-tl-sm shadow-sm'}`}>
                     {msg.role === 'user' ? msg.content : <Markdown text={msg.content} />}
-                    {isAssistant && onBookmark && (
-                      <button
-                        onClick={() => onBookmark(msg.content)}
-                        title={isBookmarked ? 'הסר סימניה' : 'שמור החלטה'}
-                        className={`absolute -bottom-2 -left-2 w-6 h-6 rounded-full border flex items-center justify-center
-                          transition-all duration-150 shadow-sm opacity-0 group-hover:opacity-100
-                          ${isBookmarked
-                            ? 'bg-amber-400 border-amber-300 text-white opacity-100'
-                            : 'bg-white border-stone-200 text-stone-400 hover:text-amber-500 hover:border-amber-300'}`}
-                      >
-                        <StarIcon filled={isBookmarked} />
-                      </button>
-                    )}
                   </div>
+                  {isAssistant && onBookmark && (
+                    <button
+                      onClick={() => onBookmark(msg.content)}
+                      title={isBookmarked ? 'הסר סימניה' : 'שמור החלטה'}
+                      className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center
+                        transition-colors touch-manipulation self-end mb-0.5
+                        ${isBookmarked
+                          ? 'text-amber-500'
+                          : 'text-stone-300 hover:text-amber-400 active:text-amber-500'}`}
+                    >
+                      <StarIcon filled={isBookmarked} />
+                    </button>
+                  )}
                 </div>
               )
             })}

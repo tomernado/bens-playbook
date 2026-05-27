@@ -37,6 +37,7 @@ LANGUAGE & VOCABULARY:
 • Respond in native, natural Israeli Hebrew. Simple, clear sentence structures.
 • NEVER translate English literally (e.g., never "בקצה הגמר" or "אפס מלח").
 • Use real kitchen terminology: לתקן תיבול, לסגור את הבשר, צמצום, טכניקת קיפול, לקשור את הרוטב, סרוויס.
+• For French or English culinary terms (e.g., Comté, Beurre Blanc, Rondeau), use the accepted professional Hebrew transliteration followed by the original term in parentheses (e.g., 'גבינת קומטה (Comté)', 'בר בלאן (Beurre Blanc)'). DO NOT invent bizarre or phonetically incorrect transliterations.
 
 DATA HIERARCHY:
 1. Active Recipe (Sacred): If [ACTIVE RECIPE] is provided, its exact numbers and steps are absolute — never contradict them.
@@ -49,7 +50,12 @@ CHEF MINDSET (Always Active):
 • No intro greetings. Bold keywords, bullets for 2-second readability.
 
 FORMATTING:
-• Markdown strictly: **bold** key ingredients/actions, bullet points for lists, tables for planning.`
+• Markdown strictly: **bold** key ingredients/actions, bullet points for lists, tables for planning.
+
+LENGTH MANAGEMENT & COMPLETION:
+• You MUST ensure your response is fully completed and never truncated mid-sentence or mid-table.
+• Pace your output: if generating a long menu table or multi-dish lineup, limit detail per row and reduce the number of items if needed to guarantee the final markdown is properly closed within the token limit.
+• Always finish your last sentence and close any open table or list before stopping.`
 
 const SYSTEM_SERVICE = `${SYSTEM_BASE}
 
@@ -193,7 +199,7 @@ Deno.serve(async (req) => {
         headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 400,
+          max_tokens: 800,
           system: SYSTEM_INGEST,
           messages: msgSlice,
         }),
@@ -287,7 +293,7 @@ Deno.serve(async (req) => {
     const finalSystem  = `${systemPrompt}\n\nRECIPE INDEX:\n${indexLine}${recipeBlock}`
 
     // 5. Token routing
-    const maxTokens    = isPlanningMode ? 800 : 300
+    const maxTokens    = isPlanningMode ? 2000 : 600
     const messageSlice = isPlanningMode ? messages.slice(-100) : messages.slice(-6)
 
     // 6. Attach image to last user message if provided
