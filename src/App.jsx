@@ -390,6 +390,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CHAT_KEY}` },
         body: JSON.stringify({ action: 'delete_bookmark', userId, bookmarkId, messageText }),
       })
+      // Re-sync count from DB after delete
+      fetchBookmarks().then(items => setBookmarkedMsgs(items.map(b => b.message_text)))
     } catch {}
   }
 
@@ -410,7 +412,9 @@ export default function App() {
           recipeId: selectedRecipe?.id ?? null,
         }),
       })
-    } catch { /* fire-and-forget — optimistic UI, DB is source of truth */ }
+      // Re-sync count from DB so badge is always accurate
+      fetchBookmarks().then(items => setBookmarkedMsgs(items.map(b => b.message_text)))
+    } catch { /* keep optimistic state on error */ }
   }
 
   const chatHasNew = !chatOpen && chatMessages.length > 0 && chatMessages.at(-1)?.role === 'assistant'
@@ -589,10 +593,12 @@ export default function App() {
     } else {
       setView('dashboard')
     }
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   function goHome() {
     setView('dashboard'); setSelectedCat(null); setSelectedRecipe(null); setRecipes([]); setSearch('')
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   return (
