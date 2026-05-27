@@ -94,99 +94,105 @@ export default function FloatingChat({ open, onToggle, messages, loading, onSend
         </div>
 
         {/* Panel header */}
-        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-stone-100 bg-white shrink-0" dir="rtl">
-          <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 text-amber-500">
-            <ChefIcon className="w-4 h-4" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-stone-800 text-sm leading-tight tracking-tight">שף After Taste</div>
-            <div className="text-stone-400 text-[11px] truncate">מתכונים · טכניקות · תחליפים</div>
+        <div className="flex flex-col border-b border-stone-100 bg-white shrink-0" dir="rtl">
+          {/* Row 1: identity + desktop controls + close */}
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 text-amber-500">
+              <ChefIcon className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-stone-800 text-sm leading-tight tracking-tight">שף After Taste</div>
+              <div className="text-stone-400 text-[11px] truncate">מתכונים · טכניקות · תחליפים</div>
+            </div>
+
+            {/* Expand — desktop only */}
+            <button
+              onClick={() => setExpanded(true)}
+              className="hidden sm:flex w-7 h-7 rounded-lg hover:bg-stone-100 items-center justify-center
+                         text-stone-400 hover:text-stone-600 transition-colors shrink-0"
+              title="הרחב"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+              </svg>
+            </button>
+
+            {/* Dock toggle — desktop only */}
+            <button
+              onClick={() => setSide(s => s === 'right' ? 'left' : 'right')}
+              className="hidden sm:flex w-7 h-7 rounded-lg hover:bg-stone-100 items-center justify-center
+                         text-stone-400 hover:text-stone-600 transition-colors text-sm shrink-0"
+              title={isRight ? 'הצמד לשמאל' : 'הצמד לימין'}
+            >
+              {isRight ? '⟵' : '⟶'}
+            </button>
+
+            {/* Close */}
+            <button
+              onClick={onToggle}
+              className="w-7 h-7 rounded-lg hover:bg-stone-100 flex items-center justify-center
+                         text-stone-400 hover:text-stone-600 transition-colors text-lg leading-none shrink-0"
+              aria-label="סגור"
+            >
+              ×
+            </button>
           </div>
 
-          {/* Planning mode toggle */}
-          {onTogglePlanning && (
+          {/* Row 2: mode toggles (always visible on mobile, visible on desktop too) */}
+          <div className="flex items-center gap-1.5 px-3 pb-2">
+            {/* Planning mode toggle */}
+            {onTogglePlanning && (
+              <button
+                type="button"
+                onClick={onTogglePlanning}
+                className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
+                  ${isPlanningMode
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
+              >
+                🗓 תכנון
+                {isPlanningMode && (
+                  <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
+                )}
+              </button>
+            )}
+
+            {/* Ingest mode toggle */}
+            {onToggleIngest && (
+              <button
+                type="button"
+                onClick={onToggleIngest}
+                className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
+                  ${isIngestMode
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
+              >
+                ➕ הוספה
+                {isIngestMode && (
+                  <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
+                )}
+              </button>
+            )}
+
+            {/* Saved bookmarks toggle */}
             <button
               type="button"
-              onClick={onTogglePlanning}
-              className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
-                ${isPlanningMode
-                  ? 'bg-amber-500 text-white shadow-sm'
-                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
+              onClick={() => setChatTab(t => t === 'saved' ? 'chat' : 'saved')}
+              title="החלטות שמורות"
+              className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all
+                ${chatTab === 'saved'
+                  ? 'bg-amber-100 text-amber-700'
+                  : savedCount > 0
+                    ? 'bg-stone-100 text-amber-600 hover:bg-amber-50'
+                    : 'bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600'}`}
             >
-              🗓 תכנון
-              {isPlanningMode && (
-                <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24"
+                fill={savedCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              {savedCount > 0 ? <span>{savedCount}</span> : <span>שמורים</span>}
             </button>
-          )}
-
-          {/* Ingest mode toggle */}
-          {onToggleIngest && (
-            <button
-              type="button"
-              onClick={onToggleIngest}
-              className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap
-                ${isIngestMode
-                  ? 'bg-emerald-500 text-white shadow-sm'
-                  : 'bg-stone-100 text-stone-500 hover:bg-stone-200 hover:text-stone-700'}`}
-            >
-              ➕ הוספה
-              {isIngestMode && (
-                <span className="text-[9px] font-bold bg-white/25 px-1 py-0.5 rounded-full">פעיל</span>
-              )}
-            </button>
-          )}
-
-          {/* Saved bookmarks toggle */}
-          <button
-            type="button"
-            onClick={() => setChatTab(t => t === 'saved' ? 'chat' : 'saved')}
-            title="החלטות שמורות"
-            className={`shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all
-              ${chatTab === 'saved'
-                ? 'bg-amber-100 text-amber-700'
-                : savedCount > 0
-                  ? 'bg-stone-100 text-amber-600 hover:bg-amber-50'
-                  : 'bg-stone-100 text-stone-400 hover:bg-stone-200 hover:text-stone-600'}`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24"
-              fill={savedCount > 0 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-            {savedCount > 0 && <span>{savedCount}</span>}
-          </button>
-
-          {/* Expand — desktop only */}
-          <button
-            onClick={() => setExpanded(true)}
-            className="hidden sm:flex w-7 h-7 rounded-lg hover:bg-stone-100 items-center justify-center
-                       text-stone-400 hover:text-stone-600 transition-colors shrink-0"
-            title="הרחב"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-            </svg>
-          </button>
-
-          {/* Dock toggle — desktop only */}
-          <button
-            onClick={() => setSide(s => s === 'right' ? 'left' : 'right')}
-            className="hidden sm:flex w-7 h-7 rounded-lg hover:bg-stone-100 items-center justify-center
-                       text-stone-400 hover:text-stone-600 transition-colors text-sm shrink-0"
-            title={isRight ? 'הצמד לשמאל' : 'הצמד לימין'}
-          >
-            {isRight ? '⟵' : '⟶'}
-          </button>
-
-          {/* Close */}
-          <button
-            onClick={onToggle}
-            className="w-7 h-7 rounded-lg hover:bg-stone-100 flex items-center justify-center
-                       text-stone-400 hover:text-stone-600 transition-colors text-lg leading-none shrink-0"
-            aria-label="סגור"
-          >
-            ×
-          </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-hidden">

@@ -653,7 +653,8 @@ export default function App() {
                 <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z"/>
                 <path d="M8 7h8M8 11h8M8 15h5"/>
               </svg>
-              <span>מתכונים שמורים</span>
+              <span className="sm:hidden">שמורים</span>
+              <span className="hidden sm:inline">מתכונים שמורים</span>
               {eventIds.length > 0 && (
                 <span className={`min-w-[18px] h-[18px] text-[10px] rounded-full flex items-center justify-center px-1 font-bold
                   ${view === 'event' ? 'bg-white text-amber-600' : 'bg-amber-500 text-white'}`}>

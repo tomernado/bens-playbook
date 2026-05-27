@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+/* ── Prevent horizontal overflow on all screens ── */
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* ── Prevent iOS Safari auto-zoom on input focus ──
+   iOS zooms when focused input font-size < 16px.
+   Only applies on mobile; desktop is unaffected.   */
+@media screen and (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
