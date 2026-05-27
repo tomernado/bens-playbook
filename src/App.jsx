@@ -70,7 +70,6 @@ function RecipeList({ category, recipes, onSelect, onAdd, onBack, eventIds, onTo
       <div className="flex items-center gap-3 mb-6">
         <button onClick={onBack} className="text-stone-500 hover:text-amber-600 transition-colors text-sm">← חזרה</button>
         <div className="flex items-center gap-2 mr-auto">
-          <span className="text-2xl">{category.emoji}</span>
           <h2 className="font-bold text-stone-800 text-lg">{category.name}</h2>
         </div>
       </div>
@@ -575,6 +574,9 @@ export default function App() {
       .then(({ data }) => setSearchResults(data || []))
   }, [search])
 
+  // Scroll to top after every view change (fires post-render, reliable on all devices)
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [view])
+
   // ── Navigation ───────────────────────────────────────────────────────
   function openCategory(cat) {
     setSelectedCat(cat); setView('category'); loadRecipesForCat(cat.id)
@@ -593,12 +595,10 @@ export default function App() {
     } else {
       setView('dashboard')
     }
-    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   function goHome() {
     setView('dashboard'); setSelectedCat(null); setSelectedRecipe(null); setRecipes([]); setSearch('')
-    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   return (
