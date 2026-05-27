@@ -497,7 +497,7 @@ export default function ChatPanel({
             <input value={input} onChange={e => setInput(e.target.value)}
               placeholder={
                 isIngestMode
-                  ? 'הדבק טקסט, צלם מתכון או הקלט קול להוספה אוטומטית...'
+                  ? 'הדבק טקסט, צלם מתכון או הקלט קול...'
                   : isPlanningMode
                     ? 'תכנן תפריט לאירוע...'
                     : currentRecipe && useRecipeCtx
@@ -505,7 +505,7 @@ export default function ChatPanel({
                       : 'שאל את השף...'
               }
               disabled={loading} autoComplete="off"
-              className={`flex-1 border rounded-xl px-4 py-2.5 text-sm transition-colors
+              className={`flex-1 min-w-0 border rounded-xl px-4 py-2.5 text-sm transition-colors
                          focus:outline-none focus:ring-2 disabled:opacity-50 bg-white placeholder-stone-400
                          ${isIngestMode
                            ? 'border-emerald-300 focus:border-emerald-400 focus:ring-emerald-100'

@@ -360,15 +360,8 @@ export default function App() {
     return id
   })
 
-  // Bookmarked messages (persisted in localStorage)
-  const [bookmarkedMsgs, setBookmarkedMsgs] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('at_bookmarks') || '[]') } catch { return [] }
-  })
-
-  function updateBookmarks(next) {
-    setBookmarkedMsgs(next)
-    localStorage.setItem('at_bookmarks', JSON.stringify(next))
-  }
+  // Bookmarked messages — DB is source of truth, loaded on mount
+  const [bookmarkedMsgs, setBookmarkedMsgs] = useState([])
 
   async function fetchBookmarks() {
     try {
@@ -382,8 +375,15 @@ export default function App() {
     } catch { return [] }
   }
 
+  // Load bookmarks from DB on mount
+  useEffect(() => {
+    fetchBookmarks().then(items => {
+      setBookmarkedMsgs(items.map(b => b.message_text))
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function deleteBookmarkById(bookmarkId, messageText) {
-    updateBookmarks(bookmarkedMsgs.filter(m => m !== messageText))
+    setBookmarkedMsgs(prev => prev.filter(m => m !== messageText))
     try {
       await fetch(CHAT_URL, {
         method: 'POST',
@@ -395,22 +395,22 @@ export default function App() {
 
   async function toggleBookmark(messageText) {
     const isBookmarked = bookmarkedMsgs.includes(messageText)
-    updateBookmarks(isBookmarked
-      ? bookmarkedMsgs.filter(m => m !== messageText)
-      : [...bookmarkedMsgs, messageText]
+    setBookmarkedMsgs(prev => isBookmarked
+      ? prev.filter(m => m !== messageText)
+      : [...prev, messageText]
     )
     try {
       await fetch(CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${CHAT_KEY}` },
         body: JSON.stringify({
-          action:      isBookmarked ? 'delete_bookmark' : 'save_bookmark',
+          action:   isBookmarked ? 'delete_bookmark' : 'save_bookmark',
           userId,
           messageText,
-          recipeId:    selectedRecipe?.id ?? null,
+          recipeId: selectedRecipe?.id ?? null,
         }),
       })
-    } catch { /* fire-and-forget, localStorage is source of truth */ }
+    } catch { /* fire-and-forget — optimistic UI, DB is source of truth */ }
   }
 
   const chatHasNew = !chatOpen && chatMessages.length > 0 && chatMessages.at(-1)?.role === 'assistant'
