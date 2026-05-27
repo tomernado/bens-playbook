@@ -353,11 +353,8 @@ export default function App() {
   }
 
   // Persistent anonymous user ID
-  const [userId] = useState(() => {
-    let id = localStorage.getItem('at_user_id')
-    if (!id) { id = crypto.randomUUID(); localStorage.setItem('at_user_id', id) }
-    return id
-  })
+  // Single-user playbook — fixed userId so bookmarks sync across all devices
+  const userId = 'bens-playbook'
 
   // Bookmarked messages — DB is source of truth, loaded on mount
   const [bookmarkedMsgs, setBookmarkedMsgs] = useState([])
