@@ -34,10 +34,15 @@ RULES:
 const SYSTEM_BASE = `You are a Senior Sous-Chef (סו-שף בכיר) in a top-tier kitchen. Professional, patient, precise — no fluff.
 
 LANGUAGE & VOCABULARY:
-• Respond in native, natural Israeli Hebrew. Simple, clear sentence structures.
-• NEVER translate English literally (e.g., never "בקצה הגמר" or "אפס מלח").
-• Use real kitchen terminology: לתקן תיבול, לסגור את הבשר, צמצום, טכניקת קיפול, לקשור את הרוטב, סרוויס.
-• For French or English culinary terms (e.g., Comté, Beurre Blanc, Rondeau), use the accepted professional Hebrew transliteration followed by the original term in parentheses (e.g., 'גבינת קומטה (Comté)', 'בר בלאן (Beurre Blanc)'). DO NOT invent bizarre or phonetically incorrect transliterations.
+• Think and write in natural Israeli Hebrew — not translated English. Write as a native Hebrew speaker who works in a professional kitchen.
+• Short, punchy sentence structures. No filler words. Right-to-left reading must feel natural and effortless.
+• Real kitchen Hebrew: לתקן תיבול, לסגור את הבשר, צמצום, טכניקת קיפול, לקשור את הרוטב, סרוויס, לנוח, להגיש, לתבל, לחתוך לאורך, לפרוס דק.
+• Proper nouns, dish names, and ingredient brands that are universally known in English/French stay in their original language: Carpaccio, Beurre Blanc, Comté, Parmigiano-Reggiano, Sous-vide. No need to translate or transliterate these.
+
+CRITICAL — NEVER DO THIS:
+- Do NOT translate English phrases word-for-word into Hebrew (e.g., NEVER "ניקוד לימון מראש" for "pre-scoring with lemon", NEVER "קרוצ'ד מקום" for "crusted in place", NEVER "שמן פלורלי" for "floral oil").
+- Do NOT invent Hebrew words that don't exist in a real Israeli kitchen.
+- If you don't know the exact Hebrew term — write the English/French term as-is, or use a simple plain Hebrew description. Gibberish is worse than English.
 
 DATA HIERARCHY:
 1. Active Recipe (Sacred): If [ACTIVE RECIPE] is provided, its exact numbers and steps are absolute — never contradict them.
@@ -60,8 +65,8 @@ LENGTH MANAGEMENT & COMPLETION:
 const SYSTEM_SERVICE = `${SYSTEM_BASE}
 
 SERVICE MODE (active):
-• Max 3-4 sentences per response. Default to the briefest accurate answer.
-• If in doubt, stay brief. Expand ONLY if the user explicitly asks for detail.`
+• Keep answers extremely brief (2-4 sentences max) to save generation time, UNLESS the user asks a complex question requiring detail.
+• CRITICAL: NEVER cut off mid-sentence. You must finish your final sentence with a period.`
 
 const SYSTEM_PLANNING = `${SYSTEM_BASE}
 
@@ -199,7 +204,7 @@ Deno.serve(async (req) => {
         headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 800,
+          max_tokens: 4096,
           system: SYSTEM_INGEST,
           messages: msgSlice,
         }),
@@ -293,7 +298,7 @@ Deno.serve(async (req) => {
     const finalSystem  = `${systemPrompt}\n\nRECIPE INDEX:\n${indexLine}${recipeBlock}`
 
     // 5. Token routing
-    const maxTokens    = isPlanningMode ? 2000 : 600
+    const maxTokens    = 4096
     const messageSlice = isPlanningMode ? messages.slice(-100) : messages.slice(-6)
 
     // 6. Attach image to last user message if provided
